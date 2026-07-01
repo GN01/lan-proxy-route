@@ -12,3 +12,11 @@ Fix follow-up after review:
 
 Verification:
 - `sh tests/run.sh`
+
+Review fix note:
+- Tightened `domain_set_available` so it only reports true when dnsmasq is present and the backend is a usable `nftset` or `ipset`; backend `unknown` or any backend-detection error now forces `false`.
+- Added regression coverage for the unknown-backend case with dnsmasq on `PATH`, plus rpcd reload coverage for the cleanup-failure branch.
+- Kept the JSON emitter self-contained so the diagnostics path still works under a minimal `PATH`.
+
+Verification:
+- `sh tests/run.sh`
