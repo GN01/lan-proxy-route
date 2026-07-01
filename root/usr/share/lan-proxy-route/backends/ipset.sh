@@ -124,13 +124,21 @@ lpr_ipset_render_cleanup() {
 	mark="$1"
 	table="$2"
 	priority="$3"
+	lan_if="${4:-}"
 
 	lpr_is_mark "$mark" || return 1
 	lpr_is_uint "$table" || return 1
 	lpr_is_uint "$priority" || return 1
+	if [ -n "$lan_if" ]; then
+		lpr_is_ifname "$lan_if" || return 1
+	fi
 
+	if [ -n "$lan_if" ]; then
+		printf 'iptables -t mangle -D PREROUTING -i %s -j LAN_PROXY_ROUTE 2>/dev/null || true\n' "$lan_if"
+	else
+		printf 'iptables -t mangle -D PREROUTING -j LAN_PROXY_ROUTE 2>/dev/null || true\n'
+	fi
 	cat <<EOF
-iptables -t mangle -D PREROUTING -j LAN_PROXY_ROUTE 2>/dev/null || true
 iptables -t mangle -F LAN_PROXY_ROUTE 2>/dev/null || true
 iptables -t mangle -X LAN_PROXY_ROUTE 2>/dev/null || true
 ipset destroy lpr_clients 2>/dev/null || true
