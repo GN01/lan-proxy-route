@@ -8,6 +8,8 @@ SERVICE=/usr/share/lan-proxy-route/lan-proxy-route.sh
 
 start_service() {
 	"$SERVICE" apply
+	/etc/init.d/dnsmasq reload >/dev/null 2>&1 || true
+	/etc/init.d/firewall reload >/dev/null 2>&1 || true
 }
 
 reload_service() {
@@ -19,4 +21,8 @@ reload_service() {
 
 stop_service() {
 	"$SERVICE" cleanup
+}
+
+status_service() {
+	"$SERVICE" diagnose
 }

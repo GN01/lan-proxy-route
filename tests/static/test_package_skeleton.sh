@@ -21,3 +21,4 @@ assert_contains root/etc/config/lan_proxy_route "option mode 'all'"
 assert_contains root/etc/config/lan_proxy_route "config bypass"
 assert_file_exists root/etc/init.d/lan-proxy-route
 assert_file_exists root/usr/share/lan-proxy-route/lan-proxy-route.sh
+assert_contains root/etc/init.d/lan-proxy-route "\"\$SERVICE\" diagnose"

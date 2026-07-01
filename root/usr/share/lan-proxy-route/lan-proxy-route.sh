@@ -167,6 +167,12 @@ lpr_service_cleanup() {
 	backend="$(lpr_detect_backend "$LPR_BACKEND" 2>/dev/null || printf '%s\n' ipset)"
 
 	lpr_service_render_cleanup "$backend" | lpr_service_run_commands
+
+	if [ "${LPR_DRY_RUN:-0}" = "1" ]; then
+		printf 'rm -f %s 2>/dev/null || true\n' "$LPR_DNSMASQ_CONF"
+	else
+		rm -f "$LPR_DNSMASQ_CONF" 2>/dev/null || true
+	fi
 }
 
 lpr_service_apply() {
