@@ -25,6 +25,30 @@ lpr_clean_domain() {
 	printf '%s\n' "$line"
 }
 
+lpr_dns_domain_set_line() {
+	domain="$1"
+	role="$2"
+	backend="$3"
+
+	case "$backend:$role" in
+		nftset:proxy)
+			printf 'nftset=/%s/4#inet#%s#proxy_v4\n' "$domain" "$LPR_TABLE_NAME"
+			;;
+		nftset:bypass)
+			printf 'nftset=/%s/4#inet#%s#bypass_v4\n' "$domain" "$LPR_TABLE_NAME"
+			;;
+		ipset:proxy)
+			printf 'ipset=/%s/lpr_proxy_v4\n' "$domain"
+			;;
+		ipset:bypass)
+			printf 'ipset=/%s/lpr_bypass_v4\n' "$domain"
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
 lpr_dns_domain_lines() {
 	file="$1"
 	role="$2"
@@ -55,25 +79,46 @@ lpr_dns_domain_lines() {
 			adblock)
 				printf 'address=/%s/0.0.0.0\n' "$domain"
 				;;
-			proxy)
+			proxy|bypass)
 				printf 'server=/%s/%s\n' "$domain" "$proxy_dns"
-				case "$backend" in
-					nftset)
-						printf 'nftset=/%s/4#inet#lan_proxy_route#proxy_v4\n' "$domain"
-						;;
-					ipset)
-						printf 'ipset=/%s/lpr_proxy_v4\n' "$domain"
-						;;
-				esac
-				if [ "$dns_result" = "fake-ip" ]; then
+				lpr_dns_domain_set_line "$domain" "$role" "$backend"
+				if [ "$role" = "proxy" ] && [ "$dns_result" = "fake-ip" ]; then
 					printf '# fake-ip domain %s is expected to be restored by the X86 proxy\n' "$domain"
 				fi
 				;;
-			bypass)
-				printf '# bypass-domain %s\n' "$domain"
-				;;
 		esac
 	done < "$file"
+}
+
+lpr_dnsmasq_emit_specs() {
+	wanted_role="$1"
+	backend="$2"
+	proxy_dns="$3"
+	shift 3
+
+	while [ "$#" -gt 0 ]; do
+		spec="$1"
+		shift
+
+		case "$spec" in
+			*:*:*)
+				file="${spec%%:*}"
+				rest="${spec#*:}"
+				role="${rest%%:*}"
+				dns_result="${rest#*:}"
+				;;
+			*)
+				[ "$#" -ge 2 ] || return 1
+				file="$spec"
+				role="$1"
+				dns_result="$2"
+				shift 2
+				;;
+		esac
+
+		[ "$role" = "$wanted_role" ] || continue
+		lpr_dns_domain_lines "$file" "$role" "$backend" "$dns_result" "$proxy_dns"
+	done
 }
 
 lpr_dnsmasq_render_config() {
@@ -97,28 +142,9 @@ lpr_dnsmasq_render_config() {
 	done
 	IFS="$old_ifs"
 
-	while [ "$#" -gt 0 ]; do
-		spec="$1"
-		shift
-
-		case "$spec" in
-			*:*:*)
-				file="${spec%%:*}"
-				rest="${spec#*:}"
-				role="${rest%%:*}"
-				dns_result="${rest#*:}"
-				;;
-			*)
-				[ "$#" -ge 2 ] || return 1
-				file="$spec"
-				role="$1"
-				dns_result="$2"
-				shift 2
-				;;
-		esac
-
-		lpr_dns_domain_lines "$file" "$role" "$backend" "$dns_result" "$proxy_dns"
-	done
+	lpr_dnsmasq_emit_specs adblock "$backend" "$proxy_dns" "$@"
+	lpr_dnsmasq_emit_specs proxy "$backend" "$proxy_dns" "$@"
+	lpr_dnsmasq_emit_specs bypass "$backend" "$proxy_dns" "$@"
 }
 
 lpr_dns_render_firewall() {
@@ -133,7 +159,6 @@ lpr_dns_render_firewall() {
 		*) return 1 ;;
 	esac
 	lpr_is_ifname "$lan_if" || return 1
-	lpr_is_ipv4 "$router_ip" || return 1
 	case "$hijack_53" in
 		0|1) ;;
 		*) return 1 ;;
@@ -143,23 +168,21 @@ lpr_dns_render_firewall() {
 		*) return 1 ;;
 	esac
 
-	if [ "$backend" = "nftset" ] && { [ "$hijack_53" = "1" ] || [ "$block_dot" = "1" ]; }; then
-		cat <<EOF
-nft add chain inet $LPR_TABLE_NAME dns_hijack '{ type nat hook prerouting priority dstnat; policy accept; }'
-EOF
-	fi
-
 	if [ "$hijack_53" = "1" ]; then
 		case "$backend" in
 			nftset)
 				cat <<EOF
+nft delete chain inet $LPR_TABLE_NAME dns_hijack 2>/dev/null || true
+nft add chain inet $LPR_TABLE_NAME dns_hijack '{ type nat hook prerouting priority dstnat; policy accept; }'
 nft add rule inet $LPR_TABLE_NAME dns_hijack iifname "$lan_if" udp dport 53 redirect to :53
 nft add rule inet $LPR_TABLE_NAME dns_hijack iifname "$lan_if" tcp dport 53 redirect to :53
 EOF
 				;;
 			ipset)
 				cat <<EOF
+iptables -t nat -D PREROUTING -i $lan_if -p udp --dport 53 -j REDIRECT --to-ports 53 2>/dev/null || true
 iptables -t nat -A PREROUTING -i $lan_if -p udp --dport 53 -j REDIRECT --to-ports 53
+iptables -t nat -D PREROUTING -i $lan_if -p tcp --dport 53 -j REDIRECT --to-ports 53 2>/dev/null || true
 iptables -t nat -A PREROUTING -i $lan_if -p tcp --dport 53 -j REDIRECT --to-ports 53
 EOF
 				;;
@@ -169,10 +192,17 @@ EOF
 	if [ "$block_dot" = "1" ]; then
 		case "$backend" in
 			nftset)
-				printf 'nft add rule inet %s dns_hijack iifname "%s" tcp dport 853 reject\n' "$LPR_TABLE_NAME" "$lan_if"
+				cat <<EOF
+nft delete chain inet $LPR_TABLE_NAME dns_dot_block 2>/dev/null || true
+nft add chain inet $LPR_TABLE_NAME dns_dot_block '{ type filter hook prerouting priority filter; policy accept; }'
+nft add rule inet $LPR_TABLE_NAME dns_dot_block iifname "$lan_if" tcp dport 853 reject
+EOF
 				;;
 			ipset)
-				printf 'iptables -A FORWARD -i %s -p tcp --dport 853 -j REJECT\n' "$lan_if"
+				cat <<EOF
+iptables -D FORWARD -i $lan_if -p tcp --dport 853 -j REJECT 2>/dev/null || true
+iptables -A FORWARD -i $lan_if -p tcp --dport 853 -j REJECT
+EOF
 				;;
 		esac
 	fi
