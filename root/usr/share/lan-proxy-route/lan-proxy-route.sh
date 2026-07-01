@@ -212,8 +212,12 @@ case "$cmd" in
 		lpr_service_cleanup
 		;;
 	diagnose)
-		backend="$(lpr_detect_backend "$LPR_BACKEND" 2>/dev/null || printf unknown)"
-		lpr_diag_json "$backend" "$LPR_X86_IP" "$LPR_LAN_IF" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY"
+		if backend="$(lpr_detect_backend "$LPR_BACKEND" 2>/dev/null)"; then
+			lpr_diag_json "$backend" "$LPR_X86_IP" "$LPR_LAN_IF" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY"
+		else
+			lpr_diag_json "unknown" "$LPR_X86_IP" "$LPR_LAN_IF" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" \
+				"unable to detect backend"
+		fi
 		;;
 	*)
 		lpr_die "usage: $0 validate|render|apply|cleanup|diagnose"

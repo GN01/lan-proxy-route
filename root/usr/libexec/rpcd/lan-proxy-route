@@ -1,6 +1,18 @@
 #!/bin/sh
 
-SERVICE=/usr/share/lan-proxy-route/lan-proxy-route.sh
+SERVICE="${LPR_RPCD_SERVICE:-/usr/share/lan-proxy-route/lan-proxy-route.sh}"
+
+lpr_rpcd_reload() {
+	if ! "$SERVICE" cleanup >/dev/null 2>&1; then
+		printf '{"ok":false,"error":"cleanup failed"}\n'
+		return 1
+	fi
+	if ! "$SERVICE" apply >/dev/null 2>&1; then
+		printf '{"ok":false,"error":"apply failed"}\n'
+		return 1
+	fi
+	printf '{"ok":true}\n'
+}
 
 case "${1:-list}" in
 	list)
@@ -19,7 +31,7 @@ EOF
 		method="$2"
 		case "$method" in
 			status) "$SERVICE" diagnose ;;
-			reload) "$SERVICE" cleanup >/dev/null 2>&1; "$SERVICE" apply >/dev/null 2>&1; printf '{"ok":true}\n' ;;
+			reload) lpr_rpcd_reload ;;
 			test_route) printf '{"ok":true,"matched":false,"reason":"test-route is rendered by diagnostics in first version"}\n' ;;
 			*) printf '{"error":"unknown method"}\n'; exit 1 ;;
 		esac
