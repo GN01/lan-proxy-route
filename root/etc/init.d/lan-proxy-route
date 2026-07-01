@@ -7,13 +7,11 @@ USE_PROCD=1
 SERVICE=/usr/share/lan-proxy-route/lan-proxy-route.sh
 
 start_service() {
-	"$SERVICE" diagnose >/dev/null
 	"$SERVICE" apply
 }
 
 reload_service() {
 	"$SERVICE" cleanup
-	"$SERVICE" diagnose >/dev/null
 	"$SERVICE" apply
 	/etc/init.d/dnsmasq reload >/dev/null 2>&1 || true
 	/etc/init.d/firewall reload >/dev/null 2>&1 || true

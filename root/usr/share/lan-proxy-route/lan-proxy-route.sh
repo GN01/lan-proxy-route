@@ -24,6 +24,7 @@ LPR_ACCESS_MODE="${LPR_ACCESS_MODE:-all}"
 LPR_HIJACK_53="${LPR_HIJACK_53:-1}"
 LPR_BLOCK_DOT="${LPR_BLOCK_DOT:-1}"
 LPR_ROUTER_IP="${LPR_ROUTER_IP:-192.168.1.1}"
+LPR_DNSMASQ_CONF="${LPR_DNSMASQ_CONF:-/tmp/dnsmasq.d/lan-proxy-route.conf}"
 LPR_ETC_DIR="${LPR_ETC_DIR:-/etc/lan-proxy-route}"
 if [ -d "./root/etc/lan-proxy-route" ]; then
 	LPR_ETC_DIR="./root/etc/lan-proxy-route"
@@ -90,10 +91,26 @@ lpr_service_render_dns() {
 	lpr_dns_render_firewall "$backend" "$LPR_LAN_IF" "$LPR_ROUTER_IP" "$LPR_HIJACK_53" "$LPR_BLOCK_DOT"
 }
 
+lpr_service_render_dnsmasq_config() {
+	backend="$1"
+
+	lpr_dnsmasq_render_config "$backend" "114.114.114.114,223.5.5.5" "$LPR_PROXY_DNS" \
+		"$LPR_ETC_DIR/adblock.txt:adblock:real-ip" \
+		"$LPR_ETC_DIR/gfwlist.txt:proxy:$LPR_DNS_MODE" \
+		"$LPR_ETC_DIR/custom-proxy-domains.txt:proxy:$LPR_DNS_MODE" \
+		"$LPR_ETC_DIR/custom-bypass-domains.txt:bypass:real-ip"
+}
+
+lpr_service_render_dns_firewall() {
+	backend="$1"
+	lpr_dns_render_firewall "$backend" "$LPR_LAN_IF" "$LPR_ROUTER_IP" "$LPR_HIJACK_53" "$LPR_BLOCK_DOT"
+}
+
 lpr_service_render() {
 	backend="$(lpr_service_backend)"
 	lpr_service_render_backend "$backend"
-	lpr_service_render_dns "$backend"
+	lpr_service_render_dnsmasq_config "$backend"
+	lpr_service_render_dns_firewall "$backend"
 }
 
 lpr_service_run_commands() {
@@ -106,31 +123,70 @@ lpr_service_run_commands() {
 		if [ "${LPR_DRY_RUN:-0}" = "1" ]; then
 			printf '%s\n' "$line"
 		else
-			sh -c "$line"
+			if [ -n "${LPR_COMMAND_RUNNER:-}" ]; then
+				"$LPR_COMMAND_RUNNER" "$line"
+			else
+				sh -c "$line"
+			fi
 		fi
 	done
 }
 
-lpr_service_cleanup() {
-	backend="$(lpr_detect_backend "$LPR_BACKEND" 2>/dev/null || printf '%s\n' ipset)"
+lpr_service_write_dnsmasq_config() {
+	backend="$1"
+	conf_dir="$(dirname "$LPR_DNSMASQ_CONF")"
+	[ -d "$conf_dir" ] || mkdir -p "$conf_dir"
+	lpr_service_render_dnsmasq_config "$backend" > "$LPR_DNSMASQ_CONF"
+}
+
+lpr_service_render_cleanup() {
+	backend="$1"
 
 	case "$backend" in
 		nftset)
+			cat <<EOF
+nft flush chain inet $LPR_TABLE_NAME dns_hijack 2>/dev/null || true
+nft delete chain inet $LPR_TABLE_NAME dns_hijack 2>/dev/null || true
+nft flush chain inet $LPR_TABLE_NAME dns_dot_block 2>/dev/null || true
+nft delete chain inet $LPR_TABLE_NAME dns_dot_block 2>/dev/null || true
+EOF
 			lpr_nft_render_cleanup "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY"
 			;;
 		ipset)
+			cat <<EOF
+iptables -t nat -D PREROUTING -i $LPR_LAN_IF -p udp --dport 53 -j REDIRECT --to-ports 53 2>/dev/null || true
+iptables -t nat -D PREROUTING -i $LPR_LAN_IF -p tcp --dport 53 -j REDIRECT --to-ports 53 2>/dev/null || true
+iptables -D FORWARD -i $LPR_LAN_IF -p tcp --dport 853 -j REJECT 2>/dev/null || true
+EOF
 			lpr_ipset_render_cleanup "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "$LPR_LAN_IF"
 			;;
 	esac
 }
 
+lpr_service_cleanup() {
+	backend="$(lpr_detect_backend "$LPR_BACKEND" 2>/dev/null || printf '%s\n' ipset)"
+
+	lpr_service_render_cleanup "$backend" | lpr_service_run_commands
+}
+
 lpr_service_apply() {
 	lpr_service_validate
+	backend="$(lpr_service_backend)"
 
-	{
-		lpr_service_cleanup
-		lpr_service_render
-	} | lpr_service_run_commands
+	if [ "${LPR_DRY_RUN:-0}" = "1" ]; then
+		{
+			lpr_service_render_cleanup "$backend"
+			lpr_service_render_backend "$backend"
+			lpr_service_render_dnsmasq_config "$backend"
+			lpr_service_render_dns_firewall "$backend"
+		} | lpr_service_run_commands
+		return 0
+	fi
+
+	lpr_service_render_cleanup "$backend" | lpr_service_run_commands
+	lpr_service_render_backend "$backend" | lpr_service_run_commands
+	lpr_service_write_dnsmasq_config "$backend"
+	lpr_service_render_dns_firewall "$backend" | lpr_service_run_commands
 }
 
 lpr_service_diagnose() {
