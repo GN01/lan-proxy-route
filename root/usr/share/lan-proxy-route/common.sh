@@ -25,13 +25,24 @@ lpr_is_uint() {
 
 lpr_is_ipv4() {
 	value="${1:-}"
-	old_ifs="$IFS"
-	IFS=.
-	set -- $value
-	IFS="$old_ifs"
 
-	[ "$#" -eq 4 ] || return 1
-	for octet in "$@"; do
+	case "$value" in
+		*.*.*.*.*|.*|*.)
+			return 1
+			;;
+	esac
+
+	octet1=${value%%.*}
+	rest=${value#*.}
+	[ "$octet1" != "$value" ] || return 1
+	octet2=${rest%%.*}
+	rest=${rest#*.}
+	[ "$rest" != "$octet2" ] || return 1
+	octet3=${rest%%.*}
+	octet4=${rest#*.}
+	[ "$octet4" != "$rest" ] || return 1
+
+	for octet in "$octet1" "$octet2" "$octet3" "$octet4"; do
 		lpr_is_uint "$octet" || return 1
 		[ "$octet" -ge 0 ] 2>/dev/null || return 1
 		[ "$octet" -le 255 ] 2>/dev/null || return 1
@@ -65,6 +76,11 @@ lpr_is_domain() {
 	case "$value" in
 		.*)
 			value="${value#.}"
+			case "$value" in
+				.*)
+					return 1
+					;;
+			esac
 			;;
 	esac
 
@@ -129,7 +145,7 @@ lpr_detect_backend() {
 			return 0
 			;;
 		auto)
-			if lpr_have_cmd nft; then
+			if lpr_have_cmd nft && lpr_have_cmd fw4; then
 				printf '%s\n' nftset
 				return 0
 			fi
