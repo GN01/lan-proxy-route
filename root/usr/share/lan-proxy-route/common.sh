@@ -76,34 +76,34 @@ lpr_is_domain() {
 	case "$value" in
 		.*)
 			value="${value#.}"
-			case "$value" in
-				.*)
-					return 1
-					;;
-			esac
 			;;
 	esac
 
 	case "$value" in
-		''|'.'|*' '*|*'/'*|*'*'*|*'?'*|*'..'*|'-'*|*'.-'*|*'-.'*)
+		''|'.'|*'.'|*' '*|*'/'*|*'*'*|*'?'*|*'..'*)
 			return 1
 			;;
 	esac
 
-	case "$value" in
-		*[!A-Za-z0-9.-]*)
-			return 1
-			;;
-	esac
+	has_dot=0
+	while :; do
+		label="${value%%.*}"
+		rest="${value#*.}"
 
-	case "$value" in
-		*.*)
-			;;
-		*)
-			return 1
-			;;
-	esac
+		[ -n "$label" ] || return 1
+		case "$label" in
+			-*|*-) return 1 ;;
+			*[!A-Za-z0-9-]*) return 1 ;;
+		esac
 
+		if [ "$rest" = "$value" ]; then
+			[ "$has_dot" -eq 1 ] || return 1
+			return 0
+		fi
+
+		has_dot=1
+		value="$rest"
+	done
 	return 0
 }
 
