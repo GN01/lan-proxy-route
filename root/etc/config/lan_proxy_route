@@ -1,0 +1,46 @@
+config global
+	option enabled '0'
+	option backend 'auto'
+	option dns_mode 'real-ip'
+	option mark '0x210'
+	option table '210'
+	option priority '10210'
+	option lan_if 'br-lan'
+	option fake_ip_cidr '198.18.0.0/15'
+
+config proxy_node 'x86'
+	option ip '192.168.1.2'
+	option dns_port '53'
+	option mode 'dae'
+
+config dns
+	option hijack_53 '1'
+	option block_dot '1'
+	list domestic_dns '114.114.114.114'
+	list domestic_dns '223.5.5.5'
+	list proxy_dns '192.168.1.2#53'
+
+config list 'gfwlist'
+	option enabled '1'
+	option type 'domain'
+	option role 'proxy'
+	option dns_result 'real-ip'
+	option source '/etc/lan-proxy-route/gfwlist.txt'
+	option dns_upstream 'proxy'
+
+config list 'adblock'
+	option enabled '1'
+	option type 'domain'
+	option role 'adblock'
+	option source '/etc/lan-proxy-route/adblock.txt'
+
+config access
+	option mode 'all'
+
+config bypass
+	list cidr '10.0.0.0/8'
+	list cidr '172.16.0.0/12'
+	list cidr '192.168.0.0/16'
+	list cidr '127.0.0.0/8'
+	list cidr '224.0.0.0/4'
+	list cidr '255.255.255.255/32'
