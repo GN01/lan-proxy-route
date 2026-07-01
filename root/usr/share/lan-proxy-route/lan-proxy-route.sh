@@ -10,6 +10,7 @@ fi
 . "$BASE_DIR/dnsmasq.sh"
 . "$BASE_DIR/backends/nft.sh"
 . "$BASE_DIR/backends/ipset.sh"
+. "$BASE_DIR/diagnostics.sh"
 
 LPR_BACKEND="${LPR_BACKEND:-auto}"
 LPR_DNS_MODE="${LPR_DNS_MODE:-real-ip}"
@@ -195,12 +196,6 @@ lpr_service_apply() {
 	lpr_service_render_dns_firewall "$backend" | lpr_service_run_commands
 }
 
-lpr_service_diagnose() {
-	backend="$(lpr_service_backend)"
-	printf '{"backend":"%s","dns_mode":"%s","lan_if":"%s","table":"%s","mark":"%s"}\n' \
-		"$backend" "$LPR_DNS_MODE" "$LPR_LAN_IF" "$LPR_TABLE" "$LPR_MARK"
-}
-
 cmd="${1:-render}"
 case "$cmd" in
 	validate)
@@ -217,8 +212,8 @@ case "$cmd" in
 		lpr_service_cleanup
 		;;
 	diagnose)
-		lpr_service_validate
-		lpr_service_diagnose
+		backend="$(lpr_detect_backend "$LPR_BACKEND" 2>/dev/null || printf unknown)"
+		lpr_diag_json "$backend" "$LPR_X86_IP" "$LPR_LAN_IF" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY"
 		;;
 	*)
 		lpr_die "usage: $0 validate|render|apply|cleanup|diagnose"

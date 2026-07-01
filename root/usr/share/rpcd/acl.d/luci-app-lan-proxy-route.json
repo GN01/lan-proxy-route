@@ -1,0 +1,17 @@
+{
+  "luci-app-lan-proxy-route": {
+    "description": "Grant access to LAN Proxy Route",
+    "read": {
+      "uci": [ "lan_proxy_route" ],
+      "ubus": {
+        "lan-proxy-route": [ "status", "test_route" ]
+      }
+    },
+    "write": {
+      "uci": [ "lan_proxy_route" ],
+      "ubus": {
+        "lan-proxy-route": [ "reload" ]
+      }
+    }
+  }
+}

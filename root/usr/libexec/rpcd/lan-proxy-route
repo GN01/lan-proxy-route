@@ -1,0 +1,28 @@
+#!/bin/sh
+
+SERVICE=/usr/share/lan-proxy-route/lan-proxy-route.sh
+
+case "${1:-list}" in
+	list)
+		cat <<'EOF'
+{
+  "status": {},
+  "reload": {},
+  "test_route": {
+    "src": "String",
+    "dst": "String"
+  }
+}
+EOF
+		;;
+	call)
+		method="$2"
+		case "$method" in
+			status) "$SERVICE" diagnose ;;
+			reload) "$SERVICE" cleanup >/dev/null 2>&1; "$SERVICE" apply >/dev/null 2>&1; printf '{"ok":true}\n' ;;
+			test_route) printf '{"ok":true,"matched":false,"reason":"test-route is rendered by diagnostics in first version"}\n' ;;
+			*) printf '{"error":"unknown method"}\n'; exit 1 ;;
+		esac
+		;;
+	*) printf '{"error":"usage"}\n'; exit 1 ;;
+esac
