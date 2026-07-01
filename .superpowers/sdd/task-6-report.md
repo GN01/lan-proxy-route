@@ -15,3 +15,9 @@ Commits created: 292ceca fix: harden service dnsmasq lifecycle
 Test summary: Added coverage for `start_service` reloading `dnsmasq`, `status_service` calling `$SERVICE diagnose`, and `cleanup` removing the service-owned runtime dnsmasq file in dry-run and real execution; `sh tests/run.sh` passes.
 Concerns: none
 Report file: /Users/gin/data/GitHub/ipset-luci/.worktrees/feature-lan-proxy-route/.superpowers/sdd/task-6-report.md
+
+Status: done
+Commits created: b9606c5 fix: expose init diagnose command
+Test summary: Added regression coverage that the init script exposes standalone `diagnose`, defines `diagnose()`, and routes both init entry points to `$SERVICE diagnose`; `sh tests/run.sh` passes.
+Concerns: none
+Report file: /Users/gin/data/GitHub/ipset-luci/.worktrees/feature-lan-proxy-route/.superpowers/sdd/task-6-report.md

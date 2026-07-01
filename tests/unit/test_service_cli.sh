@@ -15,13 +15,18 @@ sh -n "$init"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT INT TERM
 
+assert_contains "$init" "EXTRA_COMMANDS=\"diagnose\""
+
 start_service_block="$(awk '/^start_service\(\)/,/^}/ { print }' "$init")"
+diagnose_block="$(awk '/^diagnose\(\)/,/^}/ { print }' "$init")"
 status_service_block="$(awk '/^status_service\(\)/,/^}/ { print }' "$init")"
 
 printf '%s\n' "$start_service_block" > "$tmpdir/start_service.block"
+printf '%s\n' "$diagnose_block" > "$tmpdir/diagnose.block"
 printf '%s\n' "$status_service_block" > "$tmpdir/status_service.block"
 assert_contains "$tmpdir/start_service.block" "\"\$SERVICE\" apply"
 assert_contains "$tmpdir/start_service.block" "/etc/init.d/dnsmasq reload >/dev/null 2>&1 || true"
+assert_contains "$tmpdir/diagnose.block" "\"\$SERVICE\" diagnose"
 assert_contains "$tmpdir/status_service.block" "\"\$SERVICE\" diagnose"
 
 LPR_DRY_RUN=1 LPR_BACKEND=nftset LPR_X86_IP=192.168.1.2 LPR_LAN_IF=br-lan sh "$svc" render > /tmp/lpr-service-render.out
