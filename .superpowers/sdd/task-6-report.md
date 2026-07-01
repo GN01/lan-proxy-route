@@ -21,3 +21,9 @@ Commits created: b9606c5 fix: expose init diagnose command
 Test summary: Added regression coverage that the init script exposes standalone `diagnose`, defines `diagnose()`, and routes both init entry points to `$SERVICE diagnose`; `sh tests/run.sh` passes.
 Concerns: none
 Report file: /Users/gin/data/GitHub/ipset-luci/.worktrees/feature-lan-proxy-route/.superpowers/sdd/task-6-report.md
+
+Status: done
+Commits created: test: cover nftset cleanup dns firewall teardown
+Test summary: Added Task 6 regression coverage proving nftset service cleanup emits and executes teardown for both `dns_hijack` and `dns_dot_block`; `sh tests/run.sh` passes.
+Concerns: none
+Report file: /Users/gin/data/GitHub/ipset-luci/.worktrees/feature-lan-proxy-route/.superpowers/sdd/task-6-report.md

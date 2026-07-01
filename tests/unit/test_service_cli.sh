@@ -40,6 +40,12 @@ assert_contains /tmp/lpr-service-clean.out "iptables -t nat -D PREROUTING -i br-
 assert_contains /tmp/lpr-service-clean.out "iptables -D FORWARD -i br-lan -p tcp --dport 853 -j REJECT 2>/dev/null || true"
 assert_contains /tmp/lpr-service-clean.out "iptables -t mangle -D PREROUTING -i br-lan -j LAN_PROXY_ROUTE 2>/dev/null || true"
 
+LPR_DRY_RUN=1 LPR_BACKEND=nftset LPR_X86_IP=192.168.1.2 LPR_LAN_IF=br-lan sh "$svc" cleanup > /tmp/lpr-service-clean-nft.out
+assert_contains /tmp/lpr-service-clean-nft.out "nft flush chain inet lan_proxy_route dns_hijack 2>/dev/null || true"
+assert_contains /tmp/lpr-service-clean-nft.out "nft delete chain inet lan_proxy_route dns_hijack 2>/dev/null || true"
+assert_contains /tmp/lpr-service-clean-nft.out "nft flush chain inet lan_proxy_route dns_dot_block 2>/dev/null || true"
+assert_contains /tmp/lpr-service-clean-nft.out "nft delete chain inet lan_proxy_route dns_dot_block 2>/dev/null || true"
+
 if LPR_BACKEND=nftset LPR_X86_IP=999.1.1.1 sh "$svc" validate >/tmp/lpr-invalid.out 2>&1; then
 	fail "invalid X86 IP passed validation"
 fi
@@ -57,6 +63,14 @@ LPR_BACKEND=ipset LPR_X86_IP=192.168.1.2 LPR_LAN_IF=br-lan LPR_COMMAND_RUNNER="$
 LPR_EXEC_LOG="$exec_log" LPR_DNSMASQ_CONF="$dnsmasq_conf" sh "$svc" cleanup
 assert_contains "$exec_log" "ipset destroy lpr_proxy_v4 2>/dev/null || true"
 assert_contains "$exec_log" "iptables -t nat -D PREROUTING -i br-lan -p udp --dport 53 -j REDIRECT --to-ports 53 2>/dev/null || true"
+
+: > "$exec_log"
+LPR_BACKEND=nftset LPR_X86_IP=192.168.1.2 LPR_LAN_IF=br-lan LPR_COMMAND_RUNNER="$tmpdir/lpr-exec" \
+LPR_EXEC_LOG="$exec_log" LPR_DNSMASQ_CONF="$dnsmasq_conf" sh "$svc" cleanup
+assert_contains "$exec_log" "nft flush chain inet lan_proxy_route dns_hijack 2>/dev/null || true"
+assert_contains "$exec_log" "nft delete chain inet lan_proxy_route dns_hijack 2>/dev/null || true"
+assert_contains "$exec_log" "nft flush chain inet lan_proxy_route dns_dot_block 2>/dev/null || true"
+assert_contains "$exec_log" "nft delete chain inet lan_proxy_route dns_dot_block 2>/dev/null || true"
 
 printf 'server=/stale.example/192.0.2.1#53\n' > "$dnsmasq_conf"
 LPR_DRY_RUN=1 LPR_BACKEND=ipset LPR_X86_IP=192.168.1.2 LPR_LAN_IF=br-lan LPR_DNSMASQ_CONF="$dnsmasq_conf" sh "$svc" cleanup > "$tmpdir/cleanup-dry-run.out"
