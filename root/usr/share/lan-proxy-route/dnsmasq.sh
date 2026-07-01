@@ -92,6 +92,7 @@ lpr_dnsmasq_render_config() {
 	old_ifs="$IFS"
 	IFS=,
 	for dns in $domestic_dns_csv; do
+		dns="$(lpr_trim_line "$dns")"
 		[ -n "$dns" ] && printf 'server=%s\n' "$dns"
 	done
 	IFS="$old_ifs"
