@@ -1,0 +1,40 @@
+#!/bin/sh
+set -eu
+
+. ./tests/lib/assert.sh
+. ./root/usr/share/lan-proxy-route/common.sh
+. ./root/usr/share/lan-proxy-route/dnsmasq.sh
+
+tmp_domains="/tmp/lpr-domains.txt"
+cat > "$tmp_domains" <<'EOF'
+# comment
+google.com
+.youtube.com
+bad domain.test
+EOF
+
+out="$(lpr_dns_domain_lines "$tmp_domains" proxy nftset real-ip 192.168.1.2#53)"
+printf '%s\n' "$out" > /tmp/lpr-dns-nft.out
+assert_contains /tmp/lpr-dns-nft.out "server=/google.com/192.168.1.2#53"
+assert_contains /tmp/lpr-dns-nft.out "nftset=/google.com/4#inet#lan_proxy_route#proxy_v4"
+assert_contains /tmp/lpr-dns-nft.out "server=/youtube.com/192.168.1.2#53"
+assert_not_contains /tmp/lpr-dns-nft.out "bad domain.test"
+
+out="$(lpr_dns_domain_lines "$tmp_domains" proxy ipset real-ip 192.168.1.2#53)"
+printf '%s\n' "$out" > /tmp/lpr-dns-ipset.out
+assert_contains /tmp/lpr-dns-ipset.out "ipset=/google.com/lpr_proxy_v4"
+
+out="$(lpr_dns_domain_lines "$tmp_domains" adblock nftset real-ip 192.168.1.2#53)"
+printf '%s\n' "$out" > /tmp/lpr-dns-adblock.out
+assert_contains /tmp/lpr-dns-adblock.out "address=/google.com/0.0.0.0"
+assert_not_contains /tmp/lpr-dns-adblock.out "server=/google.com/"
+
+fw="$(lpr_dns_render_firewall nftset br-lan 192.168.1.1 1 1)"
+printf '%s\n' "$fw" > /tmp/lpr-dns-fw.out
+assert_contains /tmp/lpr-dns-fw.out "nft add rule inet lan_proxy_route dns_hijack iifname \"br-lan\" udp dport 53 redirect to :53"
+assert_contains /tmp/lpr-dns-fw.out "nft add rule inet lan_proxy_route dns_hijack iifname \"br-lan\" tcp dport 853 reject"
+
+fw="$(lpr_dns_render_firewall ipset br-lan 192.168.1.1 1 1)"
+printf '%s\n' "$fw" > /tmp/lpr-dns-fw-ipset.out
+assert_contains /tmp/lpr-dns-fw-ipset.out "iptables -t nat -A PREROUTING -i br-lan -p udp --dport 53 -j REDIRECT --to-ports 53"
+assert_contains /tmp/lpr-dns-fw-ipset.out "iptables -A FORWARD -i br-lan -p tcp --dport 853 -j REJECT"
