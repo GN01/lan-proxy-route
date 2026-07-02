@@ -26,7 +26,9 @@ done
 
 assert_contains root/www/luci-static/resources/view/lan-proxy-route/overview.js "'require rpc';"
 assert_contains root/www/luci-static/resources/view/lan-proxy-route/overview.js "'require uci';"
+assert_contains root/www/luci-static/resources/view/lan-proxy-route/overview.js "callStatus().catch(function()"
 assert_contains root/www/luci-static/resources/view/lan-proxy-route/settings.js "'enabled'"
 assert_contains root/www/luci-static/resources/view/lan-proxy-route/dns.js "'hijack_53'"
+assert_contains root/www/luci-static/resources/view/lan-proxy-route/dns.js "o.value('mixed', _('mixed'));"
 assert_contains root/www/luci-static/resources/view/lan-proxy-route/clients.js "'mode'"
 assert_contains root/www/luci-static/resources/view/lan-proxy-route/rules.js "fake_ip_cidr"

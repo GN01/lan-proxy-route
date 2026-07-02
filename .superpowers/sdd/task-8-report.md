@@ -13,3 +13,13 @@ Commands:
 Results:
 - Focused LuCI static test passed after correcting menu action paths and view structure assertions.
 - Full test suite passed, including static and unit coverage.
+
+## Fix Follow-Up 2
+
+Commands:
+- `sh tests/static/test_luci_views.sh`
+- `sh tests/run.sh`
+
+Results:
+- Static LuCI view checks passed after exposing `mixed` in the DNS result selector and adding an overview RPC fallback assertion.
+- Full test suite passed again, including the LuCI static checks and all unit coverage.

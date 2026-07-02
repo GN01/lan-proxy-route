@@ -31,6 +31,7 @@ return view.extend({
 		o = s.option(form.ListValue, 'dns_result', _('DNS result'));
 		o.value('real-ip', _('real-ip'));
 		o.value('fake-ip', _('fake-ip'));
+		o.value('mixed', _('mixed'));
 		s.option(form.Value, 'source', _('Source file'));
 		o = s.option(form.ListValue, 'dns_upstream', _('DNS upstream'));
 		o.value('domestic', _('Domestic'));
