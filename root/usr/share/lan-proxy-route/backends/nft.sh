@@ -129,7 +129,7 @@ lpr_nft_render_cleanup() {
 	lpr_is_uint "$table" || return 1
 	lpr_is_uint "$priority" || return 1
 
-	printf 'nft delete table inet %s 2>/dev/null || true\n' "$LPR_TABLE_NAME"
+	printf 'nft list table inet %s >/dev/null 2>&1 && nft delete table inet %s || true\n' "$LPR_TABLE_NAME" "$LPR_TABLE_NAME"
 	printf 'ip rule del fwmark %s lookup %s priority %s 2>/dev/null || true\n' "$mark" "$table" "$priority"
 	printf 'ip route flush table %s 2>/dev/null || true\n' "$table"
 }

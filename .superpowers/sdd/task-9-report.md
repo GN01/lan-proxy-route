@@ -42,3 +42,14 @@
 
 - `sh tests/unit/test_idempotency_contract.sh` - passed.
 - `sh tests/run.sh` - passed.
+
+## Fix follow-up 3
+
+- Updated `root/usr/share/lan-proxy-route/backends/nft.sh` so `lpr_nft_render_cleanup` now emits the guarded table delete stanza `nft list table inet lan_proxy_route >/dev/null 2>&1 && nft delete table inet lan_proxy_route || true`, while keeping the policy route cleanup lines unchanged and repeat-safe.
+- Updated `tests/unit/test_nft_backend.sh` and `tests/unit/test_idempotency_contract.sh` to assert the guarded nft cleanup line plus the existing policy route cleanup guards.
+
+### Commands and results
+
+- `sh tests/unit/test_nft_backend.sh` - passed.
+- `sh tests/unit/test_idempotency_contract.sh` - passed.
+- `sh tests/run.sh` - passed.

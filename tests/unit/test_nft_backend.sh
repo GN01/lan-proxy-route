@@ -56,6 +56,6 @@ fi
 
 cleanup="$(lpr_nft_render_cleanup 0x210 210 10210)"
 printf '%s\n' "$cleanup" > /tmp/lpr-nft-cleanup.out
-assert_contains /tmp/lpr-nft-cleanup.out "nft delete table inet lan_proxy_route 2>/dev/null || true"
+assert_contains /tmp/lpr-nft-cleanup.out "nft list table inet lan_proxy_route >/dev/null 2>&1 && nft delete table inet lan_proxy_route || true"
 assert_contains /tmp/lpr-nft-cleanup.out "ip rule del fwmark 0x210 lookup 210 priority 10210 2>/dev/null || true"
 assert_contains /tmp/lpr-nft-cleanup.out "ip route flush table 210 2>/dev/null || true"
