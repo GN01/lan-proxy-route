@@ -13,3 +13,39 @@ Run:
 ```sh
 sh tests/run.sh
 ```
+
+## Runtime Verification
+
+On OpenWrt 25.12 with nftset:
+
+```sh
+/etc/init.d/lan-proxy-route restart
+/usr/share/lan-proxy-route/lan-proxy-route.sh diagnose
+nft list table inet lan_proxy_route
+ip rule show
+ip route show table 210
+```
+
+On QSDK12.5/QWRT with ipset:
+
+```sh
+/etc/init.d/lan-proxy-route restart
+/usr/share/lan-proxy-route/lan-proxy-route.sh diagnose
+ipset list lpr_proxy_v4
+iptables -t mangle -S LAN_PROXY_ROUTE
+ip rule show
+ip route show table 210
+```
+
+DNS checks:
+
+```sh
+nslookup google.com 192.168.1.1
+nslookup doubleclick.net 192.168.1.1
+```
+
+Traffic checks:
+
+```sh
+ip route get 8.8.8.8 mark 0x210
+```
