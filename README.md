@@ -89,7 +89,7 @@ sh tests/run.sh
 
 ## GitHub Actions
 
-仓库包含 `.github/workflows/ci.yml`：
+仓库包含 `.github/workflows/ci.yml`，默认只通过 GitHub Actions 页面手动触发 `workflow_dispatch`：
 
 - `shell-tests`：执行 `sh tests/run.sh`
 - `package-build`：下载 OpenWrt `25.12.5` x86/64 SDK，编译 IPK

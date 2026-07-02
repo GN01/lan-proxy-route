@@ -1,9 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
   workflow_dispatch:
 
 env:
@@ -18,7 +15,7 @@ jobs:
     name: Local shell tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run local tests
         run: sh tests/run.sh
@@ -27,7 +24,7 @@ jobs:
     name: Build OpenWrt IPK
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install host tools
         run: |
@@ -91,7 +88,7 @@ jobs:
           test -f ipk-data/www/luci-static/resources/view/lan-proxy-route/overview.js
 
       - name: Upload IPK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openwrt-ipk
           path: openwrt-sdk/bin/packages/**/*.ipk
