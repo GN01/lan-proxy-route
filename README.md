@@ -92,21 +92,34 @@ sh tests/run.sh
 仓库包含 `.github/workflows/ci.yml`，默认只通过 GitHub Actions 页面手动触发 `workflow_dispatch`：
 
 - `shell-tests`：执行 `sh tests/run.sh`
-- `package-build`：下载 OpenWrt `25.12.5` x86/64 SDK，编译 IPK
-- `Smoke test IPK contents`：展开生成的 `.ipk`，检查 init、service CLI、rpcd、LuCI menu/view、ACL 等关键安装文件
-- `openwrt-ipk`：上传构建出的 IPK artifact
+- `package-build`：下载 OpenWrt `25.12.5` x86/64 SDK，编译 OpenWrt 软件包
+- `Smoke test package contents`：展开生成的 `.apk` 或 `.ipk`，检查 init、service CLI、rpcd、LuCI menu/view、ACL 等关键安装文件
+- `openwrt-package`：上传构建出的 `.apk` 或 `.ipk` artifact
 
 当前 CI 使用 x86/64 SDK 做通用打包验证。后续可以增加 IPQ807x/QSDK 目标矩阵，但 QSDK feed 的包名和 SDK 获取方式通常需要单独适配。
 
 ## 安装
 
-从 GitHub Actions artifact 下载生成的 IPK 后，在 OpenWrt 上安装：
+从 GitHub Actions artifact 下载生成的软件包后安装。OpenWrt 25.12 默认使用 APK：
+
+```sh
+apk add --allow-untrusted ./luci-app-lan-proxy-route-*.apk
+```
+
+QSDK12.5/QWRT 或仍使用 opkg 的系统安装 IPK：
 
 ```sh
 opkg install ./luci-app-lan-proxy-route_*.ipk
 ```
 
-如果依赖缺失，先安装对应依赖：
+如果依赖缺失，OpenWrt 25.12 使用 APK 安装对应依赖：
+
+```sh
+apk update
+apk add dnsmasq-full ip-full firewall4 nftables ipset iptables iptables-mod-ipset
+```
+
+QSDK12.5/QWRT 或仍使用 opkg 的系统：
 
 ```sh
 opkg update

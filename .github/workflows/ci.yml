@@ -21,7 +21,7 @@ jobs:
         run: sh tests/run.sh
 
   package-build:
-    name: Build OpenWrt IPK
+    name: Build OpenWrt package
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -61,34 +61,93 @@ jobs:
           make defconfig
           make "package/${PACKAGE_NAME}/compile" V=s
 
-      - name: Smoke test IPK contents
+      - name: Smoke test package contents
         run: |
           set -eu
-          ipk="$(find openwrt-sdk/bin/packages -name "${PACKAGE_NAME}_*.ipk" -print -quit)"
-          test -n "$ipk"
 
-          mkdir -p ipk-check ipk-data
-          (cd ipk-check && ar x "../$ipk")
+          echo "Package candidates:"
+          find openwrt-sdk/bin/packages -type f \( \
+            -name "${PACKAGE_NAME}_*.ipk" -o \
+            -name "${PACKAGE_NAME}-*.apk" -o \
+            -name "${PACKAGE_NAME}_*.apk" \
+          \) -print | sort
 
-          data_archive="$(find ipk-check -name 'data.tar.*' -print -quit)"
-          test -n "$data_archive"
+          pkg="$(find openwrt-sdk/bin/packages -type f \( \
+            -name "${PACKAGE_NAME}_*.ipk" -o \
+            -name "${PACKAGE_NAME}-*.apk" -o \
+            -name "${PACKAGE_NAME}_*.apk" \
+          \) -print -quit)"
+          if [ -z "$pkg" ]; then
+            echo "No package found for ${PACKAGE_NAME}. Available package files:" >&2
+            find openwrt-sdk/bin/packages -maxdepth 8 -type f -print | sort >&2
+            exit 1
+          fi
 
-          case "$data_archive" in
-            *.tar.gz) tar -xzf "$data_archive" -C ipk-data ;;
-            *.tar.xz) tar -xJf "$data_archive" -C ipk-data ;;
-            *.tar.zst) tar --use-compress-program=unzstd -xf "$data_archive" -C ipk-data ;;
-            *) echo "Unsupported data archive: $data_archive" >&2; exit 1 ;;
+          echo "Testing package: $pkg"
+          file "$pkg"
+          rm -rf pkg-check pkg-data
+          mkdir -p pkg-check pkg-data
+
+          case "$pkg" in
+            *.ipk)
+              (cd pkg-check && ar x "../$pkg")
+              echo "IPK archive entries:"
+              find pkg-check -maxdepth 1 -type f -print -exec file {} \;
+              data_archive="$(find pkg-check -name 'data.tar*' -print -quit)"
+              if [ -z "$data_archive" ]; then
+                echo "No data.tar* archive found in IPK. Extracted entries:" >&2
+                find pkg-check -maxdepth 2 -type f -print >&2
+                exit 1
+              fi
+              echo "Found data archive: $data_archive"
+              case "$data_archive" in
+                *.tar) tar -xf "$data_archive" -C pkg-data ;;
+                *.tar.gz) tar -xzf "$data_archive" -C pkg-data ;;
+                *.tar.xz) tar -xJf "$data_archive" -C pkg-data ;;
+                *.tar.zst) tar --use-compress-program=unzstd -xf "$data_archive" -C pkg-data ;;
+                *) echo "Unsupported IPK data archive: $data_archive" >&2; exit 1 ;;
+              esac
+              ;;
+            *.apk)
+              echo "APK archive preview:"
+              tar -tf "$pkg" | sed -n '1,120p'
+              tar -xf "$pkg" -C pkg-data
+              ;;
+            *)
+              echo "Unsupported package extension: $pkg" >&2
+              exit 1
+              ;;
           esac
 
-          test -x ipk-data/etc/init.d/lan-proxy-route
-          test -x ipk-data/usr/share/lan-proxy-route/lan-proxy-route.sh
-          test -x ipk-data/usr/libexec/rpcd/lan-proxy-route
-          test -f ipk-data/usr/share/luci/menu.d/luci-app-lan-proxy-route.json
-          test -f ipk-data/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json
-          test -f ipk-data/www/luci-static/resources/view/lan-proxy-route/overview.js
+          echo "Extracted package payload:"
+          find pkg-data -maxdepth 8 -print | sort | sed -n '1,240p'
 
-      - name: Upload IPK artifact
+          require_file() {
+            if [ ! -f "pkg-data/$1" ]; then
+              echo "Missing file: /$1" >&2
+              exit 1
+            fi
+          }
+
+          require_exec() {
+            if [ ! -x "pkg-data/$1" ]; then
+              echo "Missing executable: /$1" >&2
+              ls -l "pkg-data/$1" 2>/dev/null || true
+              exit 1
+            fi
+          }
+
+          require_exec etc/init.d/lan-proxy-route
+          require_exec usr/share/lan-proxy-route/lan-proxy-route.sh
+          require_exec usr/libexec/rpcd/lan-proxy-route
+          require_file usr/share/luci/menu.d/luci-app-lan-proxy-route.json
+          require_file usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json
+          require_file www/luci-static/resources/view/lan-proxy-route/overview.js
+
+      - name: Upload package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: openwrt-ipk
-          path: openwrt-sdk/bin/packages/**/*.ipk
+          name: openwrt-package
+          path: |
+            openwrt-sdk/bin/packages/**/*.ipk
+            openwrt-sdk/bin/packages/**/*.apk
