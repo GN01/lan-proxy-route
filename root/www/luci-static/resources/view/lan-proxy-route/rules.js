@@ -1,9 +1,7 @@
 'use strict';
 'require view';
 'require form';
-'require fs';
 
-var moduleName = 'view';
 return view.extend({
 	render: function() {
 		var m, s, o;

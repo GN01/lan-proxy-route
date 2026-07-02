@@ -2,7 +2,6 @@
 'require view';
 'require form';
 
-var moduleName = 'view';
 return view.extend({
 	render: function() {
 		var m, s, o;

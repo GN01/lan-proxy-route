@@ -4,7 +4,7 @@
     "order": 60,
     "action": {
       "type": "view",
-      "path": "view/lan-proxy-route/overview"
+      "path": "lan-proxy-route/overview"
     },
     "depends": {
       "acl": [ "luci-app-lan-proxy-route" ],
@@ -14,26 +14,26 @@
   "admin/services/lan-proxy-route/overview": {
     "title": "Overview",
     "order": 10,
-    "action": { "type": "view", "path": "view/lan-proxy-route/overview" }
+    "action": { "type": "view", "path": "lan-proxy-route/overview" }
   },
   "admin/services/lan-proxy-route/settings": {
     "title": "Basic Settings",
     "order": 20,
-    "action": { "type": "view", "path": "view/lan-proxy-route/settings" }
+    "action": { "type": "view", "path": "lan-proxy-route/settings" }
   },
   "admin/services/lan-proxy-route/dns": {
     "title": "DNS and Filtering",
     "order": 30,
-    "action": { "type": "view", "path": "view/lan-proxy-route/dns" }
+    "action": { "type": "view", "path": "lan-proxy-route/dns" }
   },
   "admin/services/lan-proxy-route/clients": {
     "title": "Client Control",
     "order": 40,
-    "action": { "type": "view", "path": "view/lan-proxy-route/clients" }
+    "action": { "type": "view", "path": "lan-proxy-route/clients" }
   },
   "admin/services/lan-proxy-route/rules": {
     "title": "Rules and Diagnostics",
     "order": 50,
-    "action": { "type": "view", "path": "view/lan-proxy-route/rules" }
+    "action": { "type": "view", "path": "lan-proxy-route/rules" }
   }
 }

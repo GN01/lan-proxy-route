@@ -3,7 +3,6 @@
 'require rpc';
 'require uci';
 
-var moduleName = 'view';
 var callStatus = rpc.declare({
 	object: 'lan-proxy-route',
 	method: 'status',
