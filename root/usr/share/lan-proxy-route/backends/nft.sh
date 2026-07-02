@@ -90,12 +90,57 @@ lpr_nft_render_elements() {
 		*) return 1 ;;
 	esac
 
+	all_cidrs=
 	for value in "$@"; do
 		[ -n "$value" ] || continue
 		entry="$value"
 		if ! lpr_is_ipv4 "$entry" && ! lpr_is_cidr "$entry"; then
 			return 1
 		fi
+		if lpr_is_cidr "$entry"; then
+			case " $all_cidrs " in
+				*" $entry "*) ;;
+				*) all_cidrs="$all_cidrs $entry" ;;
+			esac
+		fi
+	done
+
+	rendered_values=
+	for value in "$@"; do
+		[ -n "$value" ] || continue
+		entry="$value"
+		case "
+$rendered_values
+" in
+			*"
+$entry
+"*) continue ;;
+		esac
+		if lpr_is_ipv4 "$entry"; then
+			covered=0
+			for cidr in $all_cidrs; do
+				if lpr_cidr_contains_ipv4 "$cidr" "$entry"; then
+					covered=1
+					break
+				fi
+			done
+			[ "$covered" -eq 0 ] || continue
+		fi
+		if lpr_is_cidr "$entry"; then
+			covered=0
+			entry_prefix="${entry#*/}"
+			for cidr in $all_cidrs; do
+				[ "$cidr" != "$entry" ] || continue
+				cidr_prefix="${cidr#*/}"
+				if [ "$cidr_prefix" -lt "$entry_prefix" ] && lpr_cidr_contains_cidr "$cidr" "$entry"; then
+					covered=1
+					break
+				fi
+			done
+			[ "$covered" -eq 0 ] || continue
+		fi
+		rendered_values="${rendered_values}
+$entry"
 		printf 'nft add element inet %s %s { %s }\n' "$LPR_TABLE_NAME" "$set_name" "$entry"
 	done
 }

@@ -1,4 +1,4 @@
-config global
+config global 'global'
 	option enabled '0'
 	option backend 'auto'
 	option dns_mode 'real-ip'
@@ -13,7 +13,7 @@ config proxy_node 'x86'
 	option dns_port '53'
 	option mode 'dae'
 
-config dns
+config dns 'dns'
 	option hijack_53 '1'
 	option block_dot '1'
 	list domestic_dns '114.114.114.114'
@@ -34,10 +34,10 @@ config list 'adblock'
 	option role 'adblock'
 	option source '/etc/lan-proxy-route/adblock.txt'
 
-config access
+config access 'access'
 	option mode 'all'
 
-config bypass
+config bypass 'bypass'
 	list cidr '10.0.0.0/8'
 	list cidr '172.16.0.0/12'
 	list cidr '192.168.0.0/16'

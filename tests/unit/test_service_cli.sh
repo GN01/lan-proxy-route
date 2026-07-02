@@ -81,8 +81,40 @@ LPR_EXEC_LOG="$exec_log" LPR_DNSMASQ_CONF="$dnsmasq_conf" sh "$svc" cleanup
 
 : > "$exec_log"
 LPR_BACKEND=ipset LPR_X86_IP=192.168.1.2 LPR_LAN_IF=br-lan LPR_COMMAND_RUNNER="$tmpdir/lpr-exec" \
-LPR_EXEC_LOG="$exec_log" LPR_DNSMASQ_CONF="$dnsmasq_conf" sh "$svc" apply
+LPR_EXEC_LOG="$exec_log" LPR_DNSMASQ_CONF="$dnsmasq_conf" LPR_STATE_FILE="$tmpdir/apply-state-1" sh "$svc" apply
 assert_file_exists "$dnsmasq_conf"
 assert_contains "$dnsmasq_conf" "server=/google.com/192.168.1.2#53"
 assert_not_contains "$exec_log" "server=/google.com/192.168.1.2#53"
 assert_contains "$exec_log" "iptables -t nat -A PREROUTING -i br-lan -p udp --dport 53 -j REDIRECT --to-ports 53"
+
+cat > "$tmpdir/old-state" <<'EOF'
+backend=ipset
+mark=0x333
+table=333
+priority=10333
+x86_ip=192.168.33.2
+lan_if=br-old
+EOF
+
+: > "$exec_log"
+LPR_BACKEND=nftset LPR_MARK=0x444 LPR_TABLE=444 LPR_PRIORITY=10444 LPR_X86_IP=192.168.44.2 LPR_LAN_IF=br-new \
+LPR_STATE_FILE="$tmpdir/old-state" LPR_COMMAND_RUNNER="$tmpdir/lpr-exec" LPR_EXEC_LOG="$exec_log" \
+LPR_DNSMASQ_CONF="$dnsmasq_conf" sh "$svc" cleanup
+assert_contains "$exec_log" "ip route del default via 192.168.44.2 dev br-new table 444 2>/dev/null || true"
+assert_contains "$exec_log" "ip rule del fwmark 0x444 lookup 444 priority 10444 2>/dev/null || true"
+assert_contains "$exec_log" "ip route del default via 192.168.33.2 dev br-old table 333 2>/dev/null || true"
+assert_contains "$exec_log" "ip rule del fwmark 0x333 lookup 333 priority 10333 2>/dev/null || true"
+[ ! -f "$tmpdir/old-state" ] || fail "runtime state file still exists: $tmpdir/old-state"
+
+state_file="$tmpdir/runtime-state"
+: > "$exec_log"
+LPR_BACKEND=ipset LPR_MARK=0x555 LPR_TABLE=555 LPR_PRIORITY=10555 LPR_X86_IP=192.168.55.2 LPR_LAN_IF=br-state \
+LPR_STATE_FILE="$state_file" LPR_COMMAND_RUNNER="$tmpdir/lpr-exec" LPR_EXEC_LOG="$exec_log" \
+LPR_DNSMASQ_CONF="$dnsmasq_conf" sh "$svc" apply
+assert_file_exists "$state_file"
+assert_contains "$state_file" "backend=ipset"
+assert_contains "$state_file" "mark=0x555"
+assert_contains "$state_file" "table=555"
+assert_contains "$state_file" "priority=10555"
+assert_contains "$state_file" "x86_ip=192.168.55.2"
+assert_contains "$state_file" "lan_if=br-state"

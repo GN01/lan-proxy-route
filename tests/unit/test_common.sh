@@ -33,6 +33,11 @@ lpr_is_cidr 198.18.0.0/15 || fail "fake CIDR rejected"
 if lpr_is_cidr 192.168.1.0/33; then fail "invalid CIDR prefix accepted"; fi
 if lpr_is_cidr 192.168.1.1; then fail "plain IP accepted as CIDR"; fi
 
+lpr_cidr_contains_ipv4 192.168.50.0/24 192.168.50.10 || fail "CIDR containment rejected covered host"
+if lpr_cidr_contains_ipv4 192.168.60.0/24 192.168.50.20; then fail "CIDR containment accepted uncovered host"; fi
+lpr_cidr_contains_cidr 192.168.0.0/16 192.168.50.0/24 || fail "CIDR containment rejected covered CIDR"
+if lpr_cidr_contains_cidr 192.168.60.0/24 192.168.50.0/24; then fail "CIDR containment accepted uncovered CIDR"; fi
+
 lpr_is_domain google.com || fail "valid domain rejected"
 lpr_is_domain .youtube.com || fail "leading dot domain rejected"
 if lpr_is_domain ..example.com; then fail "double-dot domain accepted"; fi

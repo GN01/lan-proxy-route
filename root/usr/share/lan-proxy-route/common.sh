@@ -69,6 +69,52 @@ lpr_is_cidr() {
 	return 0
 }
 
+lpr_ipv4_to_int() {
+	value="${1:-}"
+	lpr_is_ipv4 "$value" || return 1
+
+	octet1=${value%%.*}
+	rest=${value#*.}
+	octet2=${rest%%.*}
+	rest=${rest#*.}
+	octet3=${rest%%.*}
+	octet4=${rest#*.}
+
+	printf '%s\n' "$((octet1 * 16777216 + octet2 * 65536 + octet3 * 256 + octet4))"
+}
+
+lpr_cidr_contains_ipv4() {
+	cidr="${1:-}"
+	host_ip="${2:-}"
+	lpr_is_cidr "$cidr" || return 1
+	lpr_is_ipv4 "$host_ip" || return 1
+
+	network="${cidr%/*}"
+	prefix="${cidr#*/}"
+	network_int="$(lpr_ipv4_to_int "$network")" || return 1
+	ip_int="$(lpr_ipv4_to_int "$host_ip")" || return 1
+
+	if [ "$prefix" -eq 0 ]; then
+		mask=0
+	else
+		mask="$((4294967295 - ((1 << (32 - prefix)) - 1)))"
+	fi
+
+	[ "$((ip_int & mask))" -eq "$((network_int & mask))" ]
+}
+
+lpr_cidr_contains_cidr() {
+	parent_cidr="${1:-}"
+	child_cidr="${2:-}"
+	lpr_is_cidr "$parent_cidr" || return 1
+	lpr_is_cidr "$child_cidr" || return 1
+
+	parent_prefix="${parent_cidr#*/}"
+	child_prefix="${child_cidr#*/}"
+	[ "$parent_prefix" -le "$child_prefix" ] || return 1
+	lpr_cidr_contains_ipv4 "$parent_cidr" "${child_cidr%/*}"
+}
+
 lpr_is_domain() {
 	value="${1:-}"
 	[ -n "$value" ] || return 1

@@ -19,6 +19,7 @@ if [ -d "./root/etc/lan-proxy-route" ]; then
 	LPR_ETC_DIR="./root/etc/lan-proxy-route"
 fi
 LPR_CONFIG="${LPR_CONFIG:-/etc/config/lan_proxy_route}"
+LPR_STATE_FILE="${LPR_STATE_FILE:-/var/run/lan-proxy-route.state}"
 
 lpr_join_lines() {
 	existing="${1:-}"
@@ -395,8 +396,13 @@ lpr_service_write_dnsmasq_config() {
 	lpr_service_render_dnsmasq_config "$backend" > "$LPR_DNSMASQ_CONF"
 }
 
-lpr_service_render_cleanup() {
+lpr_service_render_cleanup_tuple() {
 	backend="$1"
+	mark="$2"
+	table="$3"
+	priority="$4"
+	x86_ip="$5"
+	lan_if="$6"
 
 	case "$backend" in
 		nftset)
@@ -406,28 +412,113 @@ nft delete chain inet $LPR_TABLE_NAME dns_hijack 2>/dev/null || true
 nft flush chain inet $LPR_TABLE_NAME dns_dot_block 2>/dev/null || true
 nft delete chain inet $LPR_TABLE_NAME dns_dot_block 2>/dev/null || true
 EOF
-			lpr_nft_render_cleanup "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "$LPR_X86_IP" "$LPR_LAN_IF"
+			lpr_nft_render_cleanup "$mark" "$table" "$priority" "$x86_ip" "$lan_if"
 			;;
 		ipset)
 			cat <<EOF
-iptables -t nat -D PREROUTING -i $LPR_LAN_IF -p udp --dport 53 -j REDIRECT --to-ports 53 2>/dev/null || true
-iptables -t nat -D PREROUTING -i $LPR_LAN_IF -p tcp --dport 53 -j REDIRECT --to-ports 53 2>/dev/null || true
-iptables -D FORWARD -i $LPR_LAN_IF -p tcp --dport 853 -j REJECT 2>/dev/null || true
+iptables -t nat -D PREROUTING -i $lan_if -p udp --dport 53 -j REDIRECT --to-ports 53 2>/dev/null || true
+iptables -t nat -D PREROUTING -i $lan_if -p tcp --dport 53 -j REDIRECT --to-ports 53 2>/dev/null || true
+iptables -D FORWARD -i $lan_if -p tcp --dport 853 -j REJECT 2>/dev/null || true
 EOF
-			lpr_ipset_render_cleanup "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "$LPR_LAN_IF" "$LPR_X86_IP"
+			lpr_ipset_render_cleanup "$mark" "$table" "$priority" "$lan_if" "$x86_ip"
 			;;
 	esac
+}
+
+lpr_service_render_cleanup() {
+	backend="$1"
+	lpr_service_render_cleanup_tuple "$backend" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "$LPR_X86_IP" "$LPR_LAN_IF"
+}
+
+lpr_service_state_tuple() {
+	backend="$1"
+	mark="$2"
+	table="$3"
+	priority="$4"
+	x86_ip="$5"
+	lan_if="$6"
+
+	cat <<EOF
+backend=$backend
+mark=$mark
+table=$table
+priority=$priority
+x86_ip=$x86_ip
+lan_if=$lan_if
+EOF
+}
+
+lpr_service_state_reset() {
+	LPR_STATE_BACKEND=
+	LPR_STATE_MARK=
+	LPR_STATE_TABLE=
+	LPR_STATE_PRIORITY=
+	LPR_STATE_X86_IP=
+	LPR_STATE_LAN_IF=
+}
+
+lpr_service_state_valid() {
+	case "$LPR_STATE_BACKEND" in
+		nftset|ipset) ;;
+		*) return 1 ;;
+	esac
+	lpr_is_mark "$LPR_STATE_MARK" || return 1
+	lpr_is_uint "$LPR_STATE_TABLE" || return 1
+	lpr_is_uint "$LPR_STATE_PRIORITY" || return 1
+	lpr_is_ipv4 "$LPR_STATE_X86_IP" || return 1
+	lpr_is_ifname "$LPR_STATE_LAN_IF" || return 1
+}
+
+lpr_service_load_state() {
+	state_file="$1"
+	lpr_service_state_reset
+	[ -f "$state_file" ] || return 1
+
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+			backend=*) LPR_STATE_BACKEND="${line#backend=}" ;;
+			mark=*) LPR_STATE_MARK="${line#mark=}" ;;
+			table=*) LPR_STATE_TABLE="${line#table=}" ;;
+			priority=*) LPR_STATE_PRIORITY="${line#priority=}" ;;
+			x86_ip=*) LPR_STATE_X86_IP="${line#x86_ip=}" ;;
+			lan_if=*) LPR_STATE_LAN_IF="${line#lan_if=}" ;;
+		esac
+	done < "$state_file"
+
+	lpr_service_state_valid
+}
+
+lpr_service_render_cleanup_with_state() {
+	backend="$1"
+	lpr_service_render_cleanup "$backend"
+
+	if lpr_service_load_state "$LPR_STATE_FILE"; then
+		current_state="$(lpr_service_state_tuple "$backend" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "$LPR_X86_IP" "$LPR_LAN_IF")"
+		previous_state="$(lpr_service_state_tuple "$LPR_STATE_BACKEND" "$LPR_STATE_MARK" "$LPR_STATE_TABLE" "$LPR_STATE_PRIORITY" "$LPR_STATE_X86_IP" "$LPR_STATE_LAN_IF")"
+		if [ "$current_state" != "$previous_state" ]; then
+			lpr_service_render_cleanup_tuple "$LPR_STATE_BACKEND" "$LPR_STATE_MARK" "$LPR_STATE_TABLE" "$LPR_STATE_PRIORITY" "$LPR_STATE_X86_IP" "$LPR_STATE_LAN_IF"
+		fi
+	fi
+}
+
+lpr_service_write_state() {
+	backend="$1"
+	state_dir="$(dirname "$LPR_STATE_FILE")"
+	[ -d "$state_dir" ] || mkdir -p "$state_dir"
+	lpr_service_state_tuple "$backend" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "$LPR_X86_IP" "$LPR_LAN_IF" > "$LPR_STATE_FILE"
 }
 
 lpr_service_cleanup() {
 	backend="$(lpr_detect_backend "$LPR_BACKEND" 2>/dev/null || printf '%s\n' ipset)"
 
-	lpr_service_render_cleanup "$backend" | lpr_service_run_commands
+	lpr_service_render_cleanup_with_state "$backend" | lpr_service_run_commands
 
 	if [ "${LPR_DRY_RUN:-0}" = "1" ]; then
 		printf 'rm -f %s 2>/dev/null || true\n' "$LPR_DNSMASQ_CONF"
+		printf 'rm -f %s 2>/dev/null || true\n' "$LPR_STATE_FILE"
 	else
 		rm -f "$LPR_DNSMASQ_CONF" 2>/dev/null || true
+		rm -f "$LPR_STATE_FILE" 2>/dev/null || true
 	fi
 }
 
@@ -441,7 +532,7 @@ lpr_service_apply() {
 
 	if [ "${LPR_DRY_RUN:-0}" = "1" ]; then
 		{
-			lpr_service_render_cleanup "$backend"
+			lpr_service_render_cleanup_with_state "$backend"
 			lpr_service_render_backend "$backend"
 			lpr_service_render_dnsmasq_config "$backend"
 			lpr_service_render_dns_firewall "$backend"
@@ -449,10 +540,11 @@ lpr_service_apply() {
 		return 0
 	fi
 
-	lpr_service_render_cleanup "$backend" | lpr_service_run_commands
+	lpr_service_render_cleanup_with_state "$backend" | lpr_service_run_commands
 	lpr_service_render_backend "$backend" | lpr_service_run_commands
 	lpr_service_write_dnsmasq_config "$backend"
 	lpr_service_render_dns_firewall "$backend" | lpr_service_run_commands
+	lpr_service_write_state "$backend"
 }
 
 lpr_service_test_route() {

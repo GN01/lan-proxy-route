@@ -1,6 +1,8 @@
 #!/bin/sh
 
 SERVICE="${LPR_RPCD_SERVICE:-/usr/share/lan-proxy-route/lan-proxy-route.sh}"
+LPR_INIT_DNSMASQ="${LPR_INIT_DNSMASQ:-/etc/init.d/dnsmasq}"
+LPR_INIT_FIREWALL="${LPR_INIT_FIREWALL:-/etc/init.d/firewall}"
 
 lpr_rpcd_reload() {
 	if ! "$SERVICE" cleanup >/dev/null 2>&1; then
@@ -11,11 +13,19 @@ lpr_rpcd_reload() {
 		printf '{"ok":false,"error":"apply failed"}\n'
 		return 1
 	fi
+	"$LPR_INIT_DNSMASQ" reload >/dev/null 2>&1 || true
+	"$LPR_INIT_FIREWALL" reload >/dev/null 2>&1 || true
 	printf '{"ok":true}\n'
 }
 
+lpr_rpcd_json_dst() {
+	printf '%s\n' "${1:-}" | sed -n 's/.*"dst"[	 ]*:[	 ]*"\([^"]*\)".*/\1/p'
+}
+
 lpr_rpcd_test_route() {
-	dst="${1:-8.8.8.8}"
+	arg="${1:-8.8.8.8}"
+	dst="$(lpr_rpcd_json_dst "$arg")"
+	[ -n "$dst" ] || dst="$arg"
 	"$SERVICE" test-route "$dst"
 }
 
