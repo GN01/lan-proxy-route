@@ -23,9 +23,14 @@ lpr_rpcd_json_dst() {
 }
 
 lpr_rpcd_test_route() {
-	arg="${1:-8.8.8.8}"
+	arg="${1:-}"
+	if [ -z "$arg" ] && [ ! -t 0 ]; then
+		arg="$(cat)"
+	fi
+	[ -n "$arg" ] || arg="8.8.8.8"
 	dst="$(lpr_rpcd_json_dst "$arg")"
 	[ -n "$dst" ] || dst="$arg"
+	[ -n "$dst" ] || dst="8.8.8.8"
 	"$SERVICE" test-route "$dst"
 }
 
@@ -47,7 +52,7 @@ EOF
 		case "$method" in
 			status) "$SERVICE" diagnose ;;
 			reload) lpr_rpcd_reload ;;
-			test_route) lpr_rpcd_test_route "${3:-8.8.8.8}" ;;
+			test_route) lpr_rpcd_test_route "${3:-}" ;;
 			*) printf '{"error":"unknown method"}\n'; exit 1 ;;
 		esac
 		;;

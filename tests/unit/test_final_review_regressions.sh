@@ -179,6 +179,10 @@ case "$*" in
 		printf '8.8.8.8 via 192.168.50.2 dev br-test mark 0x321\n'
 		exit 0
 		;;
+	route\ get\ 1.1.1.1\ mark\ 0x321*)
+		printf '1.1.1.1 via 192.168.50.2 dev br-test mark 0x321\n'
+		exit 0
+		;;
 esac
 exit 1
 EOF
@@ -189,6 +193,14 @@ assert_contains "$tmpdir/rpc-route.json" '"ok":true'
 assert_contains "$tmpdir/rpc-route.json" '"matched":true'
 assert_contains "$tmpdir/ip.log" "route get 8.8.8.8 mark 0x321"
 assert_not_contains "$tmpdir/rpc-route.json" "test-route is rendered by diagnostics"
+
+: > "$tmpdir/ip.log"
+printf '{"dst":"1.1.1.1"}' > "$tmpdir/rpc-route.stdin"
+LPR_RPCD_SERVICE="$svc" LPR_CONFIG="$tmpdir/lan_proxy_route" PATH="$tmpdir:$PATH" LPR_IP_LOG="$tmpdir/ip.log" \
+	sh "$rpc" call test_route < "$tmpdir/rpc-route.stdin" > "$tmpdir/rpc-route-stdin.json"
+assert_contains "$tmpdir/rpc-route-stdin.json" '"ok":true'
+assert_contains "$tmpdir/rpc-route-stdin.json" '"matched":true'
+assert_contains "$tmpdir/ip.log" "route get 1.1.1.1 mark 0x321"
 
 cat > "$tmpdir/rpc-service" <<'EOF'
 #!/bin/sh
