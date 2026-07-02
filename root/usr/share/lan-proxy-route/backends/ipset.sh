@@ -57,6 +57,25 @@ ipset create lpr_proxy_v4 hash:net family inet -exist
 EOF
 }
 
+lpr_ipset_render_elements() {
+	set_name="$1"
+	shift
+
+	case "$set_name" in
+		lpr_clients|lpr_blocked_clients|lpr_bypass_v4|lpr_proxy_v4) ;;
+		*) return 1 ;;
+	esac
+
+	for value in "$@"; do
+		[ -n "$value" ] || continue
+		entry="$value"
+		if ! lpr_is_ipv4 "$entry" && ! lpr_is_cidr "$entry"; then
+			return 1
+		fi
+		printf 'ipset add %s %s -exist\n' "$set_name" "$entry"
+	done
+}
+
 lpr_ipset_render_mangle() {
 	lan_if="$1"
 	mark="$2"
@@ -125,12 +144,16 @@ lpr_ipset_render_cleanup() {
 	table="$2"
 	priority="$3"
 	lan_if="${4:-}"
+	x86_ip="${5:-}"
 
 	lpr_is_mark "$mark" || return 1
 	lpr_is_uint "$table" || return 1
 	lpr_is_uint "$priority" || return 1
 	if [ -n "$lan_if" ]; then
 		lpr_is_ifname "$lan_if" || return 1
+	fi
+	if [ -n "$x86_ip" ]; then
+		lpr_is_ipv4 "$x86_ip" || return 1
 	fi
 
 	if [ -n "$lan_if" ]; then
@@ -146,6 +169,10 @@ ipset destroy lpr_blocked_clients 2>/dev/null || true
 ipset destroy lpr_bypass_v4 2>/dev/null || true
 ipset destroy lpr_proxy_v4 2>/dev/null || true
 ip rule del fwmark $mark lookup $table priority $priority 2>/dev/null || true
-ip route flush table $table 2>/dev/null || true
 EOF
+	if [ -n "$x86_ip" ] && [ -n "$lan_if" ]; then
+		printf 'ip route del default via %s dev %s table %s 2>/dev/null || true\n' "$x86_ip" "$lan_if" "$table"
+	else
+		return 1
+	fi
 }

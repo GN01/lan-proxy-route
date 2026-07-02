@@ -6,6 +6,8 @@ OpenWrt handles DNS entry control, set filling, packet marks, policy routing, an
 
 The primary backend is `nftset` for OpenWrt 25.12. The compatibility backend is `ipset` for QSDK12.5/QWRT.
 
+Runtime dependencies are declared for the primary `firewall4`/`nftables` path and the advertised `ipset`/`iptables` compatibility path. Some QSDK feeds rename or split iptables/ipset packages; if a target feed does not provide `iptables-mod-ipset`, install the equivalent package that supplies `-m set` support.
+
 ## Local Checks
 
 Run:

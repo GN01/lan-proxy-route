@@ -133,6 +133,52 @@ lpr_is_mark() {
 	esac
 }
 
+lpr_trim_line() {
+	printf '%s' "${1:-}" | sed 's/^[	 ]*//; s/[	 ]*$//'
+}
+
+lpr_strip_quotes() {
+	value="$(lpr_trim_line "${1:-}")"
+	case "$value" in
+		\'*\')
+			value="${value#\'}"
+			value="${value%\'}"
+			;;
+		\"*\")
+			value="${value#\"}"
+			value="${value%\"}"
+			;;
+	esac
+	printf '%s\n' "$value"
+}
+
+lpr_is_bool_flag() {
+	case "${1:-}" in
+		0|1) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+lpr_dns_server_ip() {
+	value="${1:-}"
+	value="${value%%#*}"
+	printf '%s\n' "$value"
+}
+
+lpr_is_dns_server() {
+	ip="$(lpr_dns_server_ip "${1:-}")"
+	lpr_is_ipv4 "$ip" || return 1
+	case "${1:-}" in
+		*#*)
+			port="${1#*#}"
+			lpr_is_uint "$port" || return 1
+			[ "$port" -ge 1 ] 2>/dev/null || return 1
+			[ "$port" -le 65535 ] 2>/dev/null || return 1
+			;;
+	esac
+	return 0
+}
+
 lpr_have_cmd() {
 	command -v "$1" >/dev/null 2>&1
 }

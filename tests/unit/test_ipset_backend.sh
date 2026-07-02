@@ -57,7 +57,7 @@ if lpr_ipset_render_policy_route 0x210 210 10a10 192.168.1.2 br-lan >/tmp/lpr-ip
 	fail "invalid priority accepted"
 fi
 
-cleanup="$(lpr_ipset_render_cleanup 0x210 210 10210 br-lan)"
+cleanup="$(lpr_ipset_render_cleanup 0x210 210 10210 br-lan 192.168.1.2)"
 printf '%s\n' "$cleanup" > /tmp/lpr-ipset-cleanup.out
 assert_contains /tmp/lpr-ipset-cleanup.out "iptables -t mangle -D PREROUTING -i br-lan -j LAN_PROXY_ROUTE 2>/dev/null || true"
 assert_contains /tmp/lpr-ipset-cleanup.out "iptables -t mangle -F LAN_PROXY_ROUTE 2>/dev/null || true"
@@ -65,4 +65,5 @@ assert_contains /tmp/lpr-ipset-cleanup.out "iptables -t mangle -X LAN_PROXY_ROUT
 assert_contains /tmp/lpr-ipset-cleanup.out "ipset destroy lpr_blocked_clients 2>/dev/null || true"
 assert_contains /tmp/lpr-ipset-cleanup.out "ipset destroy lpr_proxy_v4 2>/dev/null || true"
 assert_contains /tmp/lpr-ipset-cleanup.out "ip rule del fwmark 0x210 lookup 210 priority 10210 2>/dev/null || true"
-assert_contains /tmp/lpr-ipset-cleanup.out "ip route flush table 210 2>/dev/null || true"
+assert_contains /tmp/lpr-ipset-cleanup.out "ip route del default via 192.168.1.2 dev br-lan table 210 2>/dev/null || true"
+assert_not_contains /tmp/lpr-ipset-cleanup.out "ip route flush table"

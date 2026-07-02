@@ -9,10 +9,6 @@ lpr_is_ifname() {
 	esac
 }
 
-lpr_trim_line() {
-	printf '%s' "${1:-}" | sed 's/^[	 ]*//; s/[	 ]*$//'
-}
-
 lpr_clean_domain() {
 	line="${1:-}"
 	line="${line%%#*}"
@@ -93,38 +89,66 @@ lpr_dns_domain_lines() {
 lpr_dnsmasq_emit_specs() {
 	wanted_role="$1"
 	backend="$2"
-	proxy_dns="$3"
-	shift 3
+	domestic_dns_csv="$3"
+	default_proxy_dns="$4"
+	shift 4
+
+	first_domestic="$default_proxy_dns"
+	old_ifs="$IFS"
+	IFS=,
+	for dns in $domestic_dns_csv; do
+		dns="$(lpr_trim_line "$dns")"
+		if [ -n "$dns" ]; then
+			first_domestic="$dns"
+			break
+		fi
+	done
+	IFS="$old_ifs"
 
 	while [ "$#" -gt 0 ]; do
 		spec="$1"
 		shift
 
 		case "$spec" in
+			*:*:*:*)
+				file="${spec%%:*}"
+				rest="${spec#*:}"
+				role="${rest%%:*}"
+				rest="${rest#*:}"
+				dns_result="${rest%%:*}"
+				dns_upstream="${rest#*:}"
+				;;
 			*:*:*)
 				file="${spec%%:*}"
 				rest="${spec#*:}"
 				role="${rest%%:*}"
 				dns_result="${rest#*:}"
+				dns_upstream=proxy
 				;;
 			*)
 				[ "$#" -ge 2 ] || return 1
 				file="$spec"
 				role="$1"
 				dns_result="$2"
+				dns_upstream=proxy
 				shift 2
 				;;
 		esac
 
 		[ "$role" = "$wanted_role" ] || continue
-		lpr_dns_domain_lines "$file" "$role" "$backend" "$dns_result" "$proxy_dns"
+		case "$dns_upstream" in
+			domestic) upstream_dns="$first_domestic" ;;
+			proxy|'') upstream_dns="$default_proxy_dns" ;;
+			*) upstream_dns="$default_proxy_dns" ;;
+		esac
+		lpr_dns_domain_lines "$file" "$role" "$backend" "$dns_result" "$upstream_dns"
 	done
 }
 
 lpr_dnsmasq_render_config() {
 	backend="$1"
-	domestic_dns_csv="$2"
-	proxy_dns="$3"
+	render_domestic_dns_csv="$2"
+	render_proxy_dns="$3"
 	shift 3
 
 	case "$backend" in
@@ -136,15 +160,15 @@ lpr_dnsmasq_render_config() {
 
 	old_ifs="$IFS"
 	IFS=,
-	for dns in $domestic_dns_csv; do
+	for dns in $render_domestic_dns_csv; do
 		dns="$(lpr_trim_line "$dns")"
 		[ -n "$dns" ] && printf 'server=%s\n' "$dns"
 	done
 	IFS="$old_ifs"
 
-	lpr_dnsmasq_emit_specs adblock "$backend" "$proxy_dns" "$@"
-	lpr_dnsmasq_emit_specs proxy "$backend" "$proxy_dns" "$@"
-	lpr_dnsmasq_emit_specs bypass "$backend" "$proxy_dns" "$@"
+	lpr_dnsmasq_emit_specs adblock "$backend" "$render_domestic_dns_csv" "$render_proxy_dns" "$@"
+	lpr_dnsmasq_emit_specs proxy "$backend" "$render_domestic_dns_csv" "$render_proxy_dns" "$@"
+	lpr_dnsmasq_emit_specs bypass "$backend" "$render_domestic_dns_csv" "$render_proxy_dns" "$@"
 }
 
 lpr_dns_render_firewall() {

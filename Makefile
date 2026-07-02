@@ -8,7 +8,7 @@ PKG_LICENSE:=MIT
 
 LUCI_TITLE:=LuCI support for LAN Proxy Route
 LUCI_DESCRIPTION:=Route selected LAN clients foreign traffic to one LAN-side transparent proxy host.
-LUCI_DEPENDS:=+luci-base +rpcd +dnsmasq-full +ip-full
+LUCI_DEPENDS:=+luci-base +rpcd +dnsmasq-full +ip-full +firewall4 +nftables +kmod-nft-core +ipset +iptables +iptables-mod-ipset
 LUCI_PKGARCH:=all
 
 include $(TOPDIR)/feeds/luci/luci.mk

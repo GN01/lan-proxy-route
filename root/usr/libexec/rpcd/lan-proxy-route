@@ -14,6 +14,11 @@ lpr_rpcd_reload() {
 	printf '{"ok":true}\n'
 }
 
+lpr_rpcd_test_route() {
+	dst="${1:-8.8.8.8}"
+	"$SERVICE" test-route "$dst"
+}
+
 case "${1:-list}" in
 	list)
 		cat <<'EOF'
@@ -32,7 +37,7 @@ EOF
 		case "$method" in
 			status) "$SERVICE" diagnose ;;
 			reload) lpr_rpcd_reload ;;
-			test_route) printf '{"ok":true,"matched":false,"reason":"test-route is rendered by diagnostics in first version"}\n' ;;
+			test_route) lpr_rpcd_test_route "${3:-8.8.8.8}" ;;
 			*) printf '{"error":"unknown method"}\n'; exit 1 ;;
 		esac
 		;;
