@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  OPENWRT_VERSION: 25.12.5
+  OPENWRT_TARGET: x86
+  OPENWRT_SUBTARGET: "64"
+  SDK_NAME: openwrt-sdk-25.12.5-x86-64_gcc-14.3.0_musl.Linux-x86_64
+  PACKAGE_NAME: luci-app-lan-proxy-route
+
+jobs:
+  shell-tests:
+    name: Local shell tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run local tests
+        run: sh tests/run.sh
+
+  package-build:
+    name: Build OpenWrt IPK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential clang flex bison g++ gawk gcc-multilib gettext \
+            git libncurses-dev libssl-dev python3 python3-setuptools rsync \
+            unzip zlib1g-dev file wget tar zstd
+
+      - name: Download OpenWrt SDK
+        run: |
+          set -eu
+          base_url="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}/${OPENWRT_SUBTARGET}"
+          wget -q "${base_url}/${SDK_NAME}.tar.zst"
+          tar --use-compress-program=unzstd -xf "${SDK_NAME}.tar.zst"
+          mv "${SDK_NAME}" openwrt-sdk
+
+      - name: Install feeds
+        working-directory: openwrt-sdk
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Copy package into SDK
+        run: |
+          set -eu
+          mkdir -p "openwrt-sdk/package/${PACKAGE_NAME}"
+          cp -a Makefile root "openwrt-sdk/package/${PACKAGE_NAME}/"
+
+      - name: Build package
+        working-directory: openwrt-sdk
+        run: |
+          echo "CONFIG_PACKAGE_${PACKAGE_NAME}=m" >> .config
+          make defconfig
+          make "package/${PACKAGE_NAME}/compile" V=s
+
+      - name: Smoke test IPK contents
+        run: |
+          set -eu
+          ipk="$(find openwrt-sdk/bin/packages -name "${PACKAGE_NAME}_*.ipk" -print -quit)"
+          test -n "$ipk"
+
+          mkdir -p ipk-check ipk-data
+          (cd ipk-check && ar x "../$ipk")
+
+          data_archive="$(find ipk-check -name 'data.tar.*' -print -quit)"
+          test -n "$data_archive"
+
+          case "$data_archive" in
+            *.tar.gz) tar -xzf "$data_archive" -C ipk-data ;;
+            *.tar.xz) tar -xJf "$data_archive" -C ipk-data ;;
+            *.tar.zst) tar --use-compress-program=unzstd -xf "$data_archive" -C ipk-data ;;
+            *) echo "Unsupported data archive: $data_archive" >&2; exit 1 ;;
+          esac
+
+          test -x ipk-data/etc/init.d/lan-proxy-route
+          test -x ipk-data/usr/share/lan-proxy-route/lan-proxy-route.sh
+          test -x ipk-data/usr/libexec/rpcd/lan-proxy-route
+          test -f ipk-data/usr/share/luci/menu.d/luci-app-lan-proxy-route.json
+          test -f ipk-data/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json
+          test -f ipk-data/www/luci-static/resources/view/lan-proxy-route/overview.js
+
+      - name: Upload IPK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-ipk
+          path: openwrt-sdk/bin/packages/**/*.ipk
