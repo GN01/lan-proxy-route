@@ -109,9 +109,34 @@ jobs:
               esac
               ;;
             *.apk)
-              echo "APK archive preview:"
-              tar -tf "$pkg" | sed -n '1,120p'
-              tar -xf "$pkg" -C pkg-data
+              apk_tool="$(find openwrt-sdk/staging_dir/host -type f -name apk -perm -111 -print -quit)"
+              if [ -z "$apk_tool" ]; then
+                echo "No SDK host apk tool found. Candidate host tools:" >&2
+                find openwrt-sdk/staging_dir/host -maxdepth 4 -type f -name '*apk*' -print >&2
+                exit 1
+              fi
+
+              echo "Using SDK apk tool: $apk_tool"
+              "$apk_tool" --version || true
+              "$apk_tool" --help | sed -n '1,120p' || true
+
+              mkdir -p pkg-data/etc/apk
+              touch pkg-data/etc/apk/world
+
+              if ! "$apk_tool" \
+                --root "$PWD/pkg-data" \
+                --initdb \
+                --keys-dir /dev/null \
+                --repositories-file /dev/null \
+                --allow-untrusted \
+                --no-network \
+                --force-broken-world \
+                add --no-scripts "$PWD/$pkg"; then
+                echo "Failed to install APK into temporary rootfs: $pkg" >&2
+                echo "APK tool help:" >&2
+                "$apk_tool" --help >&2 || true
+                exit 1
+              fi
               ;;
             *)
               echo "Unsupported package extension: $pkg" >&2
