@@ -124,6 +124,7 @@ jobs:
               touch pkg-data/etc/apk/world
 
               if ! "$apk_tool" \
+                --usermode \
                 --root "$PWD/pkg-data" \
                 --initdb \
                 --keys-dir /dev/null \
