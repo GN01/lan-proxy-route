@@ -118,24 +118,15 @@ jobs:
 
               echo "Using SDK apk tool: $apk_tool"
               "$apk_tool" --version || true
-              "$apk_tool" --help | sed -n '1,120p' || true
 
-              mkdir -p pkg-data/etc/apk
-              touch pkg-data/etc/apk/world
-
-              if ! "$apk_tool" \
-                --usermode \
-                --root "$PWD/pkg-data" \
-                --initdb \
-                --keys-dir /dev/null \
-                --repositories-file /dev/null \
-                --allow-untrusted \
-                --no-network \
-                --force-broken-world \
-                add --no-scripts "$PWD/$pkg"; then
-                echo "Failed to install APK into temporary rootfs: $pkg" >&2
-                echo "APK tool help:" >&2
-                "$apk_tool" --help >&2 || true
+              # apk v3 packages use the ADB container format, so plain tar cannot read
+              # them, and `apk add` on a single local file with no repository index just
+              # writes WORLD without unpacking ("0 packages"). Use `apk extract` to unpack
+              # the package payload for verification: no signatures, repos or scripts needed.
+              if ! "$apk_tool" extract --no-chown --destination "$PWD/pkg-data" "$PWD/$pkg"; then
+                echo "Failed to extract APK payload: $pkg" >&2
+                echo "apk extract help:" >&2
+                "$apk_tool" extract --help >&2 || true
                 exit 1
               fi
               ;;
