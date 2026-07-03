@@ -2,6 +2,15 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Create git tag and GitHub Release after a successful build
+        type: boolean
+        default: true
+      tag:
+        description: Release tag (default v{PKG_VERSION}-r{PKG_RELEASE} from Makefile)
+        type: string
+        required: false
   push:
     tags:
       - "v*"
@@ -143,21 +152,64 @@ jobs:
           name: openwrt-package
           path: openwrt-sdk/bin/packages/**/*.apk
 
+      - name: Resolve release tag
+        id: release_tag
+        run: |
+          set -eu
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.publish_release }}" != "true" ]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ -n "${{ inputs.tag }}" ]; then
+              tag="${{ inputs.tag }}"
+            else
+              version="$(grep '^PKG_VERSION:=' Makefile | cut -d= -f2)"
+              release="$(grep '^PKG_RELEASE:=' Makefile | cut -d= -f2)"
+              tag="v${version}-r${release}"
+            fi
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $tag"
+
+      - name: Create git tag
+        if: steps.release_tag.outputs.skip != 'true' && github.event_name == 'workflow_dispatch'
+        run: |
+          set -eu
+          tag="${{ steps.release_tag.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists locally"
+          else
+            git tag -a "$tag" -m "Release $tag"
+          fi
+          git push origin "$tag"
+
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.release_tag.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          tag="${GITHUB_REF_NAME}"
+          tag="${{ steps.release_tag.outputs.tag }}"
           files="$(find openwrt-sdk/bin/packages -type f -name "${PACKAGE_NAME}*.apk")"
           if [ -z "$files" ]; then
             echo "No package files to release" >&2
             exit 1
           fi
-          # shellcheck disable=SC2086
-          gh release create "$tag" $files \
-            --title "$tag" \
-            --generate-notes \
-            --repo "$GITHUB_REPOSITORY" || \
-          gh release upload "$tag" $files --clobber --repo "$GITHUB_REPOSITORY"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # shellcheck disable=SC2086
+            gh release upload "$tag" $files --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            # shellcheck disable=SC2086
+            gh release create "$tag" $files \
+              --title "$tag" \
+              --generate-notes \
+              --repo "$GITHUB_REPOSITORY"
+          fi

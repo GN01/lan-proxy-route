@@ -99,12 +99,13 @@ sh tests/run.sh
 
 ## GitHub Actions
 
-仓库包含 `.github/workflows/ci.yml`，默认只通过 GitHub Actions 页面手动触发 `workflow_dispatch`：
+仓库包含 `.github/workflows/ci.yml`，可通过 GitHub Actions 页面手动触发 `workflow_dispatch`，或推送 `v*` tag 触发：
 
 - `shell-tests`：执行 `sh tests/run.sh`
 - `package-build`：下载 OpenWrt `25.12.5` x86/64 SDK，编译 OpenWrt 软件包
-- `Smoke test package contents`：展开生成的 `.apk` 或 `.ipk`，检查 init、service CLI、rpcd、LuCI menu/view、ACL 等关键安装文件
-- `openwrt-package`：上传构建出的 `.apk` 或 `.ipk` artifact
+- `Smoke test package contents`：展开生成的 `.apk`，检查 init、service CLI、rpcd、LuCI menu/view、ACL 等关键安装文件
+- `openwrt-package`：上传构建出的 `.apk` artifact
+- `Publish GitHub Release`：手动触发时默认开启，会按 Makefile 的 `PKG_VERSION`/`PKG_RELEASE` 自动创建 tag（如 `v0.1.0-r2`）并发布 Release；也可在触发时自定义 tag 或关闭发布
 
 当前 CI 使用 x86/64 SDK 做通用打包验证。后续可以增加 IPQ807x/QSDK 目标矩阵，但 QSDK feed 的包名和 SDK 获取方式通常需要单独适配。
 
