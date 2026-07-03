@@ -68,7 +68,17 @@ nftset/ipset match -> fwmark -> ip rule -> table 210 -> X86 next-hop
 - OpenWrt 25.12：优先使用 `nftset`、`nftables`、`firewall4`、`dnsmasq-full`。
 - QSDK12.5/QWRT：兼容 `ipset`、`iptables`、`dnsmasq-full`。
 
-运行依赖已经写入 `Makefile`。部分 QSDK feed 可能会重命名或拆分 `iptables`/`ipset` 相关包；如果目标 feed 没有 `iptables-mod-ipset`，请安装提供 `-m set` 支持的等价包。
+运行依赖已经写入 `Makefile`，默认面向 OpenWrt 25.12 / ImmortalWrt 的 `nftset` 后端（`firewall4`、`nftables`、`dnsmasq-full`）。
+
+若手动选择 `ipset` 后端（例如 QSDK12.5/QWRT），需自行安装 legacy 依赖。部分 feed 可能没有 `iptables-mod-ipset`，请安装提供 `-m set` 支持的等价包：
+
+```sh
+# opkg 系统
+opkg install ipset iptables iptables-mod-ipset
+
+# apk 系统（若 feed 提供对应包）
+apk add ipset iptables iptables-mod-ipset
+```
 
 ## 本地测试
 
@@ -112,14 +122,14 @@ QSDK12.5/QWRT 或仍使用 opkg 的系统安装 IPK：
 opkg install ./luci-app-lan-proxy-route_*.ipk
 ```
 
-如果依赖缺失，OpenWrt 25.12 使用 APK 安装对应依赖：
+如果依赖缺失，OpenWrt 25.12 / ImmortalWrt 使用 APK 安装对应依赖：
 
 ```sh
 apk update
-apk add dnsmasq-full ip-full firewall4 nftables ipset iptables iptables-mod-ipset
+apk add dnsmasq-full ip-full firewall4 nftables
 ```
 
-QSDK12.5/QWRT 或仍使用 opkg 的系统：
+QSDK12.5/QWRT 或仍使用 opkg 的系统，若需 `ipset` 后端再额外安装：
 
 ```sh
 opkg update

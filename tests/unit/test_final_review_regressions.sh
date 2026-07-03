@@ -232,5 +232,5 @@ assert_contains "$tmpdir/rpc-init.log" "firewall reload"
 
 assert_contains Makefile "+firewall4"
 assert_contains Makefile "+nftables"
-assert_contains Makefile "+ipset"
-assert_contains Makefile "+iptables"
+assert_not_contains Makefile "+ipset"
+assert_not_contains Makefile "+iptables"
