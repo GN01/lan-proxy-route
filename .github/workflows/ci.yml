@@ -2,6 +2,12 @@ name: CI
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
 
 env:
   OPENWRT_VERSION: 25.12.5
@@ -136,3 +142,22 @@ jobs:
         with:
           name: openwrt-package
           path: openwrt-sdk/bin/packages/**/*.apk
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          files="$(find openwrt-sdk/bin/packages -type f -name "${PACKAGE_NAME}*.apk")"
+          if [ -z "$files" ]; then
+            echo "No package files to release" >&2
+            exit 1
+          fi
+          # shellcheck disable=SC2086
+          gh release create "$tag" $files \
+            --title "$tag" \
+            --generate-notes \
+            --repo "$GITHUB_REPOSITORY" || \
+          gh release upload "$tag" $files --clobber --repo "$GITHUB_REPOSITORY"
