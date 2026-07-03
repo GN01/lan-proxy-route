@@ -67,13 +67,11 @@ jobs:
 
           echo "Package candidates:"
           find openwrt-sdk/bin/packages -type f \( \
-            -name "${PACKAGE_NAME}_*.ipk" -o \
             -name "${PACKAGE_NAME}-*.apk" -o \
             -name "${PACKAGE_NAME}_*.apk" \
           \) -print | sort
 
           pkg="$(find openwrt-sdk/bin/packages -type f \( \
-            -name "${PACKAGE_NAME}_*.ipk" -o \
             -name "${PACKAGE_NAME}-*.apk" -o \
             -name "${PACKAGE_NAME}_*.apk" \
           \) -print -quit)"
@@ -85,56 +83,28 @@ jobs:
 
           echo "Testing package: $pkg"
           file "$pkg"
-          rm -rf pkg-check pkg-data
-          mkdir -p pkg-check pkg-data
+          rm -rf pkg-data
+          mkdir -p pkg-data
 
-          case "$pkg" in
-            *.ipk)
-              (cd pkg-check && ar x "../$pkg")
-              echo "IPK archive entries:"
-              find pkg-check -maxdepth 1 -type f -print -exec file {} \;
-              data_archive="$(find pkg-check -name 'data.tar*' -print -quit)"
-              if [ -z "$data_archive" ]; then
-                echo "No data.tar* archive found in IPK. Extracted entries:" >&2
-                find pkg-check -maxdepth 2 -type f -print >&2
-                exit 1
-              fi
-              echo "Found data archive: $data_archive"
-              case "$data_archive" in
-                *.tar) tar -xf "$data_archive" -C pkg-data ;;
-                *.tar.gz) tar -xzf "$data_archive" -C pkg-data ;;
-                *.tar.xz) tar -xJf "$data_archive" -C pkg-data ;;
-                *.tar.zst) tar --use-compress-program=unzstd -xf "$data_archive" -C pkg-data ;;
-                *) echo "Unsupported IPK data archive: $data_archive" >&2; exit 1 ;;
-              esac
-              ;;
-            *.apk)
-              apk_tool="$(find openwrt-sdk/staging_dir/host -type f -name apk -perm -111 -print -quit)"
-              if [ -z "$apk_tool" ]; then
-                echo "No SDK host apk tool found. Candidate host tools:" >&2
-                find openwrt-sdk/staging_dir/host -maxdepth 4 -type f -name '*apk*' -print >&2
-                exit 1
-              fi
+          apk_tool="$(find openwrt-sdk/staging_dir/host -type f -name apk -perm -111 -print -quit)"
+          if [ -z "$apk_tool" ]; then
+            echo "No SDK host apk tool found. Candidate host tools:" >&2
+            find openwrt-sdk/staging_dir/host -maxdepth 4 -type f -name '*apk*' -print >&2
+            exit 1
+          fi
 
-              echo "Using SDK apk tool: $apk_tool"
-              "$apk_tool" --version || true
+          echo "Using SDK apk tool: $apk_tool"
+          "$apk_tool" --version || true
 
-              # apk v3 packages use the ADB container format, so plain tar cannot read
-              # them, and `apk add` on a single local file with no repository index just
-              # writes WORLD without unpacking ("0 packages"). Use `apk extract` to unpack
-              # the package payload for verification: no signatures, repos or scripts needed.
-              if ! "$apk_tool" extract --no-chown --destination "$PWD/pkg-data" "$PWD/$pkg"; then
-                echo "Failed to extract APK payload: $pkg" >&2
-                echo "apk extract help:" >&2
-                "$apk_tool" extract --help >&2 || true
-                exit 1
-              fi
-              ;;
-            *)
-              echo "Unsupported package extension: $pkg" >&2
-              exit 1
-              ;;
-          esac
+          # apk v3 packages use the ADB container format, so plain tar cannot read
+          # them. Use `apk extract` to unpack the package payload for verification.
+          # --allow-untrusted is required because SDK-built packages carry no
+          # trusted signature.
+          if ! "$apk_tool" extract --allow-untrusted --no-chown \
+            --destination "$PWD/pkg-data" "$PWD/$pkg"; then
+            echo "Failed to extract APK payload: $pkg" >&2
+            exit 1
+          fi
 
           echo "Extracted package payload:"
           find pkg-data -maxdepth 8 -print | sort | sed -n '1,240p'
@@ -165,6 +135,4 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: openwrt-package
-          path: |
-            openwrt-sdk/bin/packages/**/*.ipk
-            openwrt-sdk/bin/packages/**/*.apk
+          path: openwrt-sdk/bin/packages/**/*.apk
