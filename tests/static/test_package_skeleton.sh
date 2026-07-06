@@ -12,6 +12,7 @@ assert_file_exists root/etc/lan-proxy-route/custom-bypass-domains.txt
 
 assert_contains Makefile "PKG_NAME:=luci-app-lan-proxy-route"
 assert_contains Makefile "LUCI_TITLE:=LuCI support for LAN Proxy Route"
+assert_file_exists po/zh_Hans/luci-app-lan-proxy-route.po
 assert_contains root/etc/config/lan_proxy_route "config global 'global'"
 assert_contains root/etc/config/lan_proxy_route "option backend 'auto'"
 assert_contains root/etc/config/lan_proxy_route "option dns_mode 'real-ip'"
@@ -23,3 +24,4 @@ assert_contains root/etc/config/lan_proxy_route "config bypass 'bypass'"
 assert_file_exists root/etc/init.d/lan-proxy-route
 assert_file_exists root/usr/share/lan-proxy-route/lan-proxy-route.sh
 assert_contains root/etc/init.d/lan-proxy-route "\"\$SERVICE\" diagnose"
+assert_contains root/etc/init.d/lan-proxy-route "trace"

@@ -16,9 +16,11 @@ exit 0
 EOF
 chmod +x "$tmpdir/dnsmasq-bin/dnsmasq"
 
-json="$(lpr_diag_json nftset 192.168.1.2 br-lan 0x210 210 10210)"
+json="$(lpr_diag_json nftset 192.168.1.2 br-lan 0x210 210 10210 "" "/tmp/dnsmasq.d/lan-proxy-route.conf" 1)"
 printf '%s\n' "$json" > "$tmpdir/lpr-diag.json"
 assert_contains "$tmpdir/lpr-diag.json" '"backend":"nftset"'
+assert_contains "$tmpdir/lpr-diag.json" '"enabled":true'
+assert_contains "$tmpdir/lpr-diag.json" '"running":false'
 assert_contains "$tmpdir/lpr-diag.json" '"x86_ip":"192.168.1.2"'
 assert_contains "$tmpdir/lpr-diag.json" '"lan_if":"br-lan"'
 assert_contains "$tmpdir/lpr-diag.json" '"mark":"0x210"'
@@ -49,6 +51,7 @@ assert_contains "$tmpdir/lpr-cli-diag-fail.json" '"domain_set_available":false'
 assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"luci-app-lan-proxy-route"'
 assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"lan-proxy-route"'
 assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"status"'
+assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"logs"'
 assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"reload"'
 
 cat > "$tmpdir/mock-service-success" <<'EOF'
@@ -70,6 +73,7 @@ chmod +x "$tmpdir/mock-service-success"
 
 LPR_RPCD_SERVICE="$tmpdir/mock-service-success" sh "$rpc" list > "$tmpdir/rpc-list.json"
 assert_contains "$tmpdir/rpc-list.json" '"status"'
+assert_contains "$tmpdir/rpc-list.json" '"logs"'
 assert_contains "$tmpdir/rpc-list.json" '"reload"'
 assert_contains "$tmpdir/rpc-list.json" '"test_route"'
 

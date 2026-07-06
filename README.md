@@ -167,6 +167,39 @@ nslookup doubleclick.net 192.168.1.1
 
 广告过滤命中时应返回 `0.0.0.0`。代理域名应写入 `nftset` 或 `ipset`。
 
+## 启动调试
+
+LuCI「概况」页会显示运行状态、诊断项和最近 syslog。若启动失败，可先在 SSH 中逐步执行：
+
+```sh
+# 1. 校验 UCI 配置是否合法
+/usr/share/lan-proxy-route/lan-proxy-route.sh validate
+
+# 2. 预览将执行的 nft/ip/dnsmasq 命令（不实际运行）
+LPR_DRY_RUN=1 /usr/share/lan-proxy-route/lan-proxy-route.sh render
+
+# 或使用 init.d 封装
+/etc/init.d/lan-proxy-route trace
+
+# 3. 详细启动：写入 syslog，第一条失败命令即退出
+LPR_VERBOSE=1 /usr/share/lan-proxy-route/lan-proxy-route.sh apply
+
+# 4. 查看诊断 JSON（含 enabled / running 字段）
+/usr/share/lan-proxy-route/lan-proxy-route.sh diagnose
+
+# 5. 查看服务日志
+logread -e lan-proxy-route | tail -n 80
+
+# 6. 正式重启
+/etc/init.d/lan-proxy-route restart
+```
+
+常见失败原因：
+
+- `invalid proxy IP`：X86 代理 IP 未填或格式错误
+- `unable to detect backend`：缺少 `nft`/`fw4`（nftset）或 `ipset`（ipset 后端）
+- `command failed`：配合 `LPR_VERBOSE=1 apply` 查看是哪条 nft/ip 命令失败
+
 ## 路由验证
 
 ```sh

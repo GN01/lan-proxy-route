@@ -15,7 +15,7 @@ sh -n "$init"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT INT TERM
 
-assert_contains "$init" "EXTRA_COMMANDS=\"diagnose\""
+assert_contains "$init" "EXTRA_COMMANDS=\"diagnose trace\""
 
 start_service_block="$(awk '/^start_service\(\)/,/^}/ { print }' "$init")"
 diagnose_block="$(awk '/^diagnose\(\)/,/^}/ { print }' "$init")"

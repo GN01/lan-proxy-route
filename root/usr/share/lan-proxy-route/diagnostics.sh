@@ -170,6 +170,7 @@ lpr_diag_json() {
 	priority="$6"
 	backend_error="${7:-}"
 	dnsmasq_conf="${8:-/tmp/dnsmasq.d/lan-proxy-route.conf}"
+	enabled="${9:-1}"
 	nft_available="$(lpr_json_bool_cmd nft)"
 	ipset_available="$(lpr_json_bool_cmd ipset)"
 	dnsmasq_available="$(lpr_json_bool_cmd dnsmasq)"
@@ -201,8 +202,20 @@ lpr_diag_json() {
 	dns_hijack_present="$(lpr_diag_chain_present "$backend" dns_hijack)"
 	dot_block_present="$(lpr_diag_chain_present "$backend" dns_dot_block)"
 	x86_reachable="$(lpr_diag_x86_reachable "$x86_ip")"
+	running=false
+	if [ "$enabled" = "1" ] && [ "$backend_table_present" = true ] && \
+		[ "$policy_rule_present" = true ] && [ -z "$backend_error" ]; then
+		running=true
+	fi
+	if [ "$enabled" = "1" ]; then
+		enabled_json=true
+	else
+		enabled_json=false
+	fi
 	printf '%s\n' '{'
 	printf '  "service":"lan-proxy-route",\n'
+	printf '  "enabled":%s,\n' "$enabled_json"
+	printf '  "running":%s,\n' "$running"
 	printf '  "backend":"%s",\n' "$backend"
 	printf '  "x86_ip":"%s",\n' "$x86_ip"
 	printf '  "lan_if":"%s",\n' "$lan_if"

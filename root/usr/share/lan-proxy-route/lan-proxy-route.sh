@@ -379,11 +379,19 @@ lpr_service_run_commands() {
 
 		if [ "${LPR_DRY_RUN:-0}" = "1" ]; then
 			printf '%s\n' "$line"
+			continue
+		fi
+
+		lpr_log "exec: $line"
+		if [ -n "${LPR_COMMAND_RUNNER:-}" ]; then
+			if ! "$LPR_COMMAND_RUNNER" "$line"; then
+				lpr_log "failed: $line"
+				[ "${LPR_VERBOSE:-0}" = "1" ] && lpr_die "command failed: $line"
+			fi
 		else
-			if [ -n "${LPR_COMMAND_RUNNER:-}" ]; then
-				"$LPR_COMMAND_RUNNER" "$line"
-			else
-				sh -c "$line"
+			if ! sh -c "$line"; then
+				lpr_log "failed: $line"
+				[ "${LPR_VERBOSE:-0}" = "1" ] && lpr_die "command failed: $line"
 			fi
 		fi
 	done
@@ -523,12 +531,15 @@ lpr_service_cleanup() {
 }
 
 lpr_service_apply() {
+	lpr_log "apply: start"
 	lpr_service_validate
 	if [ "$LPR_ENABLED" != "1" ]; then
+		lpr_log "apply: disabled, cleaning up"
 		lpr_service_cleanup
 		return 0
 	fi
 	backend="$(lpr_service_backend)"
+	lpr_log "apply: backend=$backend"
 
 	if [ "${LPR_DRY_RUN:-0}" = "1" ]; then
 		{
@@ -545,6 +556,7 @@ lpr_service_apply() {
 	lpr_service_write_dnsmasq_config "$backend"
 	lpr_service_render_dns_firewall "$backend" | lpr_service_run_commands
 	lpr_service_write_state "$backend"
+	lpr_log "apply: done"
 }
 
 lpr_service_test_route() {
@@ -590,10 +602,10 @@ case "$cmd" in
 		;;
 	diagnose)
 		if backend="$(lpr_detect_backend "$LPR_BACKEND" 2>/dev/null)"; then
-			lpr_diag_json "$backend" "$LPR_X86_IP" "$LPR_LAN_IF" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "" "$LPR_DNSMASQ_CONF"
+			lpr_diag_json "$backend" "$LPR_X86_IP" "$LPR_LAN_IF" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "" "$LPR_DNSMASQ_CONF" "$LPR_CFG_ENABLED"
 		else
 			lpr_diag_json "unknown" "$LPR_X86_IP" "$LPR_LAN_IF" "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" \
-				"unable to detect backend" "$LPR_DNSMASQ_CONF"
+				"unable to detect backend" "$LPR_DNSMASQ_CONF" "$LPR_CFG_ENABLED"
 		fi
 		;;
 	test-route)

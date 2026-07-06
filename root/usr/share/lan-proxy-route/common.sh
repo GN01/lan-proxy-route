@@ -8,6 +8,7 @@ lpr_log() {
 }
 
 lpr_die() {
+	lpr_log "error: $*"
 	printf '%s\n' "$*" >&2
 	exit 1
 }

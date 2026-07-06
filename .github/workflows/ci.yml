@@ -67,7 +67,7 @@ jobs:
         run: |
           set -eu
           mkdir -p "openwrt-sdk/package/${PACKAGE_NAME}"
-          cp -a Makefile root "openwrt-sdk/package/${PACKAGE_NAME}/"
+          cp -a Makefile root po "openwrt-sdk/package/${PACKAGE_NAME}/"
 
       - name: Build package
         working-directory: openwrt-sdk
