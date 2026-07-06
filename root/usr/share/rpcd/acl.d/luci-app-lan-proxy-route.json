@@ -10,7 +10,7 @@
     "write": {
       "uci": [ "lan_proxy_route" ],
       "ubus": {
-        "lan-proxy-route": [ "reload" ]
+        "lan-proxy-route": [ "reload", "update_chnroute" ]
       }
     }
   }

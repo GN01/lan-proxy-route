@@ -16,6 +16,12 @@ var callLogs = rpc.declare({
 	expect: { log: '' }
 });
 
+var callUpdateChnroute = rpc.declare({
+	object: 'lan-proxy-route',
+	method: 'update_chnroute',
+	expect: {}
+});
+
 var REACH_LABELS = {
 	reachable: _('可达'),
 	unreachable: _('不可达'),
@@ -67,16 +73,45 @@ function renderStatusTable(st) {
 		boolRow(_('后端规则表'), st.backend_table_present),
 		boolRow(_('策略路由规则'), st.policy_rule_present),
 		boolRow(_('策略路由'), st.policy_route_present),
-		boolRow(_('DNS 劫持'), st.dns_hijack_present),
-		boolRow(_('DoT 阻断'), st.dot_block_present),
-		boolRow(_('dnsmasq 配置'), st.dnsmasq_config_present),
-		boolRow(_('域名集合支持'), st.domain_set_available)
+		boolRow(_('国内 IP 集合'), st.china_set_present),
+		textRow(_('国内 IP 库版本'), st.china_list_version),
+		textRow(_('国内 IP 库条目数'), st.china_list_entries)
 	];
 
 	if (st.backend_error)
 		rows.push(textRow(_('后端错误'), st.backend_error));
 
 	return E('table', { 'class': 'table' }, rows);
+}
+
+function renderChnrouteUpdate() {
+	var resultBox = E('pre', {
+		'style': 'white-space:pre-wrap;margin-top:0.5em;display:none;'
+	}, '');
+
+	var btn = E('button', {
+		'class': 'btn cbi-button cbi-button-action',
+		'click': function(ev) {
+			var button = ev.target;
+			button.disabled = true;
+			button.textContent = _('更新中…');
+			resultBox.style.display = 'none';
+			callUpdateChnroute().then(function(res) {
+				resultBox.textContent = res.ok
+					? (res.message || _('更新完成'))
+					: (_('更新失败') + '：' + (res.error || _('未知错误')));
+				resultBox.style.display = 'block';
+			}).catch(function(err) {
+				resultBox.textContent = _('更新失败') + '：' + err;
+				resultBox.style.display = 'block';
+			}).finally(function() {
+				button.disabled = false;
+				button.textContent = _('更新国内 IP 库');
+			});
+		}
+	}, _('更新国内 IP 库'));
+
+	return E('div', {}, [ btn, resultBox ]);
 }
 
 function renderCommands() {
@@ -122,6 +157,9 @@ return view.extend({
 
 		if (!st.error && st.backend)
 			body.push(renderStatusTable(st));
+
+		body.push(E('h3', {}, _('国内 IP 库')));
+		body.push(renderChnrouteUpdate());
 
 		body.push(E('h3', {}, _('最近日志')));
 		body.push(E('pre', {

@@ -1,4 +1,0 @@
-# One domain per line. Leading dots are accepted by the renderer.
-google.com
-youtube.com
-github.com

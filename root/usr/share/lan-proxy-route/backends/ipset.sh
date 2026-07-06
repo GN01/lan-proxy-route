@@ -13,34 +13,11 @@ lpr_ipset_client_match() {
 	access_mode="$1"
 
 	case "$access_mode" in
-		all)
-			printf -- '-m set --match-set lpr_proxy_v4 dst'
+		all|blocklist)
+			printf ''
 			;;
 		allowlist)
-			printf -- '-m set --match-set lpr_clients src -m set --match-set lpr_proxy_v4 dst'
-			;;
-		blocklist)
-			printf -- '-m set --match-set lpr_proxy_v4 dst'
-			;;
-		*)
-			return 1
-			;;
-	esac
-}
-
-lpr_ipset_fake_match() {
-	access_mode="$1"
-	fake_cidr="$2"
-
-	case "$access_mode" in
-		all)
-			printf -- '-d %s' "$fake_cidr"
-			;;
-		allowlist)
-			printf -- '-m set --match-set lpr_clients src -d %s' "$fake_cidr"
-			;;
-		blocklist)
-			printf -- '-d %s' "$fake_cidr"
+			printf -- '-m set --match-set lpr_clients src '
 			;;
 		*)
 			return 1
@@ -53,7 +30,7 @@ lpr_ipset_render_setup() {
 ipset create lpr_clients hash:net family inet -exist
 ipset create lpr_blocked_clients hash:net family inet -exist
 ipset create lpr_bypass_v4 hash:net family inet -exist
-ipset create lpr_proxy_v4 hash:net family inet -exist
+ipset create lpr_china_v4 hash:net family inet maxelem 65536 -exist
 EOF
 }
 
@@ -62,7 +39,7 @@ lpr_ipset_render_elements() {
 	shift
 
 	case "$set_name" in
-		lpr_clients|lpr_blocked_clients|lpr_bypass_v4|lpr_proxy_v4) ;;
+		lpr_clients|lpr_blocked_clients|lpr_bypass_v4|lpr_china_v4) ;;
 		*) return 1 ;;
 	esac
 
@@ -76,23 +53,59 @@ lpr_ipset_render_elements() {
 	done
 }
 
+# Bulk-load a large CIDR list file into a set via `ipset restore`, batched
+# into chunks piped through a single ipset invocation per chunk.
+lpr_ipset_render_file_elements() {
+	set_name="$1"
+	file="$2"
+	chunk_size="${3:-500}"
+
+	case "$set_name" in
+		lpr_bypass_v4|lpr_china_v4) ;;
+		*) return 1 ;;
+	esac
+	[ -f "$file" ] || return 1
+	lpr_is_uint "$chunk_size" || return 1
+	[ "$chunk_size" -ge 1 ] || return 1
+
+	chunk=
+	count=0
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+			''|\#*) continue ;;
+		esac
+		if ! lpr_is_cidr "$line" && ! lpr_is_ipv4 "$line"; then
+			continue
+		fi
+		if [ -z "$chunk" ]; then
+			chunk="add $set_name $line -exist"
+		else
+			chunk="$chunk\nadd $set_name $line -exist"
+		fi
+		count=$((count + 1))
+		if [ "$count" -ge "$chunk_size" ]; then
+			printf 'printf '\''%s\\n'\'' | ipset restore\n' "$chunk"
+			chunk=
+			count=0
+		fi
+	done < "$file"
+	if [ -n "$chunk" ]; then
+		printf 'printf '\''%s\\n'\'' | ipset restore\n' "$chunk"
+	fi
+}
+
+# GeoIP split model: bypass and China destinations RETURN; everything else
+# from eligible clients is marked for the proxy routing table.
 lpr_ipset_render_mangle() {
 	lan_if="$1"
 	mark="$2"
 	access_mode="$3"
-	dns_mode="$4"
-	fake_cidr="$5"
 
 	lpr_is_ifname "$lan_if" || return 1
 	lpr_is_mark "$mark" || return 1
-	lpr_is_cidr "$fake_cidr" || return 1
 
 	case "$access_mode" in
 		all|allowlist|blocklist) ;;
-		*) return 1 ;;
-	esac
-	case "$dns_mode" in
-		real-ip|fake-ip|mixed) ;;
 		*) return 1 ;;
 	esac
 
@@ -102,6 +115,7 @@ lpr_ipset_render_mangle() {
 iptables -t mangle -N LAN_PROXY_ROUTE
 iptables -t mangle -A PREROUTING -i $lan_if -j LAN_PROXY_ROUTE
 iptables -t mangle -A LAN_PROXY_ROUTE -m set --match-set lpr_bypass_v4 dst -j RETURN
+iptables -t mangle -A LAN_PROXY_ROUTE -m set --match-set lpr_china_v4 dst -j RETURN
 EOF
 
 	if [ "$access_mode" = "blocklist" ]; then
@@ -111,15 +125,8 @@ EOF
 	fi
 
 	cat <<EOF
-iptables -t mangle -A LAN_PROXY_ROUTE $client_match -j MARK --set-mark $mark
+iptables -t mangle -A LAN_PROXY_ROUTE ${client_match}-j MARK --set-mark $mark
 EOF
-
-	if [ "$dns_mode" = "fake-ip" ]; then
-		fake_match="$(lpr_ipset_fake_match "$access_mode" "$fake_cidr")" || return 1
-		cat <<EOF
-iptables -t mangle -A LAN_PROXY_ROUTE $fake_match -j MARK --set-mark $mark
-EOF
-	fi
 }
 
 lpr_ipset_render_policy_route() {
@@ -166,7 +173,7 @@ iptables -t mangle -X LAN_PROXY_ROUTE 2>/dev/null || true
 ipset destroy lpr_clients 2>/dev/null || true
 ipset destroy lpr_blocked_clients 2>/dev/null || true
 ipset destroy lpr_bypass_v4 2>/dev/null || true
-ipset destroy lpr_proxy_v4 2>/dev/null || true
+ipset destroy lpr_china_v4 2>/dev/null || true
 ip rule del fwmark $mark lookup $table priority $priority 2>/dev/null || true
 EOF
 	if [ -n "$x86_ip" ] && [ -n "$lan_if" ]; then

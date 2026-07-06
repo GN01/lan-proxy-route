@@ -116,44 +116,6 @@ lpr_cidr_contains_cidr() {
 	lpr_cidr_contains_ipv4 "$parent_cidr" "${child_cidr%/*}"
 }
 
-lpr_is_domain() {
-	value="${1:-}"
-	[ -n "$value" ] || return 1
-
-	case "$value" in
-		.*)
-			value="${value#.}"
-			;;
-	esac
-
-	case "$value" in
-		''|'.'|*'.'|*' '*|*'/'*|*'*'*|*'?'*|*'..'*)
-			return 1
-			;;
-	esac
-
-	has_dot=0
-	while :; do
-		label="${value%%.*}"
-		rest="${value#*.}"
-
-		[ -n "$label" ] || return 1
-		case "$label" in
-			-*|*-) return 1 ;;
-			*[!A-Za-z0-9-]*) return 1 ;;
-		esac
-
-		if [ "$rest" = "$value" ]; then
-			[ "$has_dot" -eq 1 ] || return 1
-			return 0
-		fi
-
-		has_dot=1
-		value="$rest"
-	done
-	return 0
-}
-
 lpr_is_mark() {
 	value="${1:-}"
 	case "$value" in
@@ -204,26 +166,6 @@ lpr_is_bool_flag() {
 		0|1) return 0 ;;
 		*) return 1 ;;
 	esac
-}
-
-lpr_dns_server_ip() {
-	value="${1:-}"
-	value="${value%%#*}"
-	printf '%s\n' "$value"
-}
-
-lpr_is_dns_server() {
-	ip="$(lpr_dns_server_ip "${1:-}")"
-	lpr_is_ipv4 "$ip" || return 1
-	case "${1:-}" in
-		*#*)
-			port="${1#*#}"
-			lpr_is_uint "$port" || return 1
-			[ "$port" -ge 1 ] 2>/dev/null || return 1
-			[ "$port" -le 65535 ] 2>/dev/null || return 1
-			;;
-	esac
-	return 0
 }
 
 lpr_have_cmd() {

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 SERVICE="${LPR_RPCD_SERVICE:-/usr/share/lan-proxy-route/lan-proxy-route.sh}"
-LPR_INIT_DNSMASQ="${LPR_INIT_DNSMASQ:-/etc/init.d/dnsmasq}"
+UPDATER="${LPR_RPCD_UPDATER:-/usr/share/lan-proxy-route/update-chnroute.sh}"
 LPR_INIT_FIREWALL="${LPR_INIT_FIREWALL:-/etc/init.d/firewall}"
 LPR_LOG_TAG="${LPR_LOG_TAG:-lan-proxy-route}"
 
@@ -31,9 +31,31 @@ lpr_rpcd_reload() {
 		printf '{"ok":false,"error":"apply failed"}\n'
 		return 1
 	fi
-	"$LPR_INIT_DNSMASQ" reload >/dev/null 2>&1 || true
 	"$LPR_INIT_FIREWALL" reload >/dev/null 2>&1 || true
 	printf '{"ok":true}\n'
+}
+
+lpr_rpcd_json_escape() {
+	printf '%s' "${1:-}" | awk '
+		BEGIN { first = 1 }
+		{
+			gsub(/\\/, "\\\\")
+			gsub(/"/, "\\\"")
+			gsub(/\r/, "")
+			if (!first) printf "\\n"
+			printf "%s", $0
+			first = 0
+		}
+	'
+}
+
+lpr_rpcd_update_chnroute() {
+	if output="$("$UPDATER" update 2>&1)"; then
+		printf '{"ok":true,"message":"%s"}\n' "$(lpr_rpcd_json_escape "$output")"
+	else
+		printf '{"ok":false,"error":"%s"}\n' "$(lpr_rpcd_json_escape "$output")"
+		return 1
+	fi
 }
 
 lpr_rpcd_json_dst() {
@@ -59,6 +81,7 @@ case "${1:-list}" in
   "status": {},
   "logs": {},
   "reload": {},
+  "update_chnroute": {},
   "test_route": {
     "src": "String",
     "dst": "String"
@@ -72,6 +95,7 @@ EOF
 			status) "$SERVICE" diagnose ;;
 			logs) lpr_rpcd_json_log ;;
 			reload) lpr_rpcd_reload ;;
+			update_chnroute) lpr_rpcd_update_chnroute ;;
 			test_route) lpr_rpcd_test_route "${3:-}" ;;
 			*) printf '{"error":"unknown method"}\n'; exit 1 ;;
 		esac

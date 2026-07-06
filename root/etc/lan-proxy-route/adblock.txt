@@ -1,3 +1,0 @@
-# One domain per line.
-doubleclick.net
-googlesyndication.com

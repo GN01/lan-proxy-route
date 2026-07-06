@@ -13,9 +13,6 @@ msgstr "概况"
 msgid "Basic Settings"
 msgstr "基本设置"
 
-msgid "DNS and Filtering"
-msgstr "DNS 与过滤"
-
 msgid "Client Control"
 msgstr "客户端控制"
 
@@ -31,18 +28,6 @@ msgstr "后端"
 msgid "Automatic"
 msgstr "自动"
 
-msgid "DNS result mode"
-msgstr "DNS 解析模式"
-
-msgid "real-ip"
-msgstr "真实 IP"
-
-msgid "fake-ip"
-msgstr "虚假 IP"
-
-msgid "mixed"
-msgstr "混合"
-
 msgid "LAN interface"
 msgstr "LAN 接口"
 
@@ -55,8 +40,8 @@ msgstr "路由表"
 msgid "Rule priority"
 msgstr "规则优先级"
 
-msgid "Fake IP CIDR"
-msgstr "虚假 IP 网段"
+msgid "China IP list update source"
+msgstr "国内 IP 库更新源"
 
 msgid "X86 Proxy Host"
 msgstr "X86 代理主机"
@@ -64,53 +49,8 @@ msgstr "X86 代理主机"
 msgid "Proxy host IP"
 msgstr "代理主机 IP"
 
-msgid "Proxy DNS port"
-msgstr "代理 DNS 端口"
-
 msgid "Proxy mode"
 msgstr "代理模式"
-
-msgid "Force LAN DNS 53 to OpenWrt"
-msgstr "强制 LAN DNS 53 指向 OpenWrt"
-
-msgid "Block DoT TCP/853"
-msgstr "阻断 DoT TCP/853"
-
-msgid "Domestic DNS servers"
-msgstr "国内 DNS 服务器"
-
-msgid "Proxy DNS servers"
-msgstr "代理 DNS 服务器"
-
-msgid "Domain Lists"
-msgstr "域名列表"
-
-msgid "Enabled"
-msgstr "启用"
-
-msgid "Role"
-msgstr "角色"
-
-msgid "Proxy"
-msgstr "代理"
-
-msgid "Ad block"
-msgstr "广告过滤"
-
-msgid "Bypass"
-msgstr "绕过"
-
-msgid "DNS result"
-msgstr "DNS 解析结果"
-
-msgid "Source file"
-msgstr "源文件"
-
-msgid "DNS upstream"
-msgstr "DNS 上游"
-
-msgid "Domestic"
-msgstr "国内"
 
 msgid "Access mode"
 msgstr "访问模式"
@@ -136,9 +76,6 @@ msgstr "屏蔽的 IP 地址"
 msgid "Blocked CIDR ranges"
 msgstr "屏蔽的网段"
 
-msgid "Route Rules"
-msgstr "路由规则"
-
 msgid "Bypass Destinations"
 msgstr "绕过目标"
 
@@ -160,9 +97,6 @@ msgstr "已停止"
 msgid "Disabled"
 msgstr "已禁用"
 
-msgid "Status unavailable"
-msgstr "状态不可用"
-
 msgid "Yes"
 msgstr "是"
 
@@ -171,9 +105,6 @@ msgstr "否"
 
 msgid "Unknown"
 msgstr "未知"
-
-msgid "Configuration enabled"
-msgstr "配置已启用"
 
 msgid "Active backend"
 msgstr "当前后端"
@@ -202,17 +133,32 @@ msgstr "策略路由规则"
 msgid "Policy route"
 msgstr "策略路由"
 
-msgid "DNS hijack"
-msgstr "DNS 劫持"
+msgid "China IP set"
+msgstr "国内 IP 集合"
 
-msgid "DoT block"
-msgstr "DoT 阻断"
+msgid "China IP list version"
+msgstr "国内 IP 库版本"
 
-msgid "dnsmasq config"
-msgstr "dnsmasq 配置"
+msgid "China IP list entries"
+msgstr "国内 IP 库条目数"
 
-msgid "Domain set support"
-msgstr "域名集合支持"
+msgid "China IP list"
+msgstr "国内 IP 库"
+
+msgid "Update China IP list"
+msgstr "更新国内 IP 库"
+
+msgid "Updating..."
+msgstr "更新中…"
+
+msgid "Update finished"
+msgstr "更新完成"
+
+msgid "Update failed"
+msgstr "更新失败"
+
+msgid "Unknown error"
+msgstr "未知错误"
 
 msgid "Backend error"
 msgstr "后端错误"
@@ -243,9 +189,6 @@ msgstr "查看系统日志"
 
 msgid "Restart service"
 msgstr "重启服务"
-
-msgid "Reload via LuCI RPC"
-msgstr "通过 LuCI 重载"
 
 msgid "Raw diagnostics JSON"
 msgstr "原始诊断 JSON"

@@ -38,14 +38,6 @@ if lpr_cidr_contains_ipv4 192.168.60.0/24 192.168.50.20; then fail "CIDR contain
 lpr_cidr_contains_cidr 192.168.0.0/16 192.168.50.0/24 || fail "CIDR containment rejected covered CIDR"
 if lpr_cidr_contains_cidr 192.168.60.0/24 192.168.50.0/24; then fail "CIDR containment accepted uncovered CIDR"; fi
 
-lpr_is_domain google.com || fail "valid domain rejected"
-lpr_is_domain .youtube.com || fail "leading dot domain rejected"
-if lpr_is_domain ..example.com; then fail "double-dot domain accepted"; fi
-if lpr_is_domain "bad domain.com"; then fail "domain with space accepted"; fi
-if lpr_is_domain "-bad.example"; then fail "leading dash accepted"; fi
-if lpr_is_domain foo.bar-; then fail "terminal dash accepted"; fi
-if lpr_is_domain foo.bar-baz-; then fail "terminal dash label accepted"; fi
-
 lpr_is_uint 210 || fail "valid uint rejected"
 if lpr_is_uint abc; then fail "text uint accepted"; fi
 

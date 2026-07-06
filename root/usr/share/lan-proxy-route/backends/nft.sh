@@ -31,12 +31,13 @@ lpr_nft_client_prefix() {
 	esac
 }
 
+# GeoIP split model: destinations in bypass_v4 (reserved/custom) or china_v4
+# (China routes) stay on the normal path; everything else is treated as
+# foreign and gets marked for the proxy routing table.
 lpr_nft_render_table() {
 	lan_if="$1"
 	mark="$2"
 	access_mode="$3"
-	dns_mode="$4"
-	fake_cidr="$5"
 
 	lpr_is_ifname "$lan_if" || return 1
 	lpr_is_mark "$mark" || return 1
@@ -44,11 +45,6 @@ lpr_nft_render_table() {
 		all|allowlist|blocklist) ;;
 		*) return 1 ;;
 	esac
-	case "$dns_mode" in
-		real-ip|fake-ip|mixed) ;;
-		*) return 1 ;;
-	esac
-	lpr_is_cidr "$fake_cidr" || return 1
 
 	prefix="$(lpr_nft_client_prefix "$lan_if" "$access_mode")" || return 1
 
@@ -57,9 +53,10 @@ nft add table inet $LPR_TABLE_NAME
 nft add set inet $LPR_TABLE_NAME clients_v4 '{ type ipv4_addr; flags interval; }'
 nft add set inet $LPR_TABLE_NAME blocked_clients_v4 '{ type ipv4_addr; flags interval; }'
 nft add set inet $LPR_TABLE_NAME bypass_v4 '{ type ipv4_addr; flags interval; }'
-nft add set inet $LPR_TABLE_NAME proxy_v4 '{ type ipv4_addr; flags interval; }'
+nft add set inet $LPR_TABLE_NAME china_v4 '{ type ipv4_addr; flags interval; }'
 nft add chain inet $LPR_TABLE_NAME prerouting '{ type filter hook prerouting priority mangle; policy accept; }'
 nft add rule inet $LPR_TABLE_NAME prerouting iifname "$lan_if" ip daddr @bypass_v4 return
+nft add rule inet $LPR_TABLE_NAME prerouting iifname "$lan_if" ip daddr @china_v4 return
 EOF
 
 	if [ "$access_mode" = "blocklist" ]; then
@@ -69,16 +66,8 @@ EOF
 	fi
 
 	cat <<EOF
-nft add rule inet $LPR_TABLE_NAME prerouting $prefix ip daddr @proxy_v4 meta mark set $mark
+nft add rule inet $LPR_TABLE_NAME prerouting $prefix meta mark set $mark
 EOF
-
-	case "$dns_mode" in
-		fake-ip)
-			cat <<EOF
-nft add rule inet $LPR_TABLE_NAME prerouting $prefix ip daddr $fake_cidr meta mark set $mark
-EOF
-			;;
-	esac
 }
 
 lpr_nft_render_elements() {
@@ -86,7 +75,7 @@ lpr_nft_render_elements() {
 	shift
 
 	case "$set_name" in
-		clients_v4|blocked_clients_v4|bypass_v4|proxy_v4) ;;
+		clients_v4|blocked_clients_v4|bypass_v4|china_v4) ;;
 		*) return 1 ;;
 	esac
 
@@ -143,6 +132,47 @@ $entry
 $entry"
 		printf 'nft add element inet %s %s { %s }\n' "$LPR_TABLE_NAME" "$set_name" "$entry"
 	done
+}
+
+# Bulk-load a large CIDR list file into a set. Entries are batched into
+# chunks so thousands of CIDRs do not need one nft invocation each.
+lpr_nft_render_file_elements() {
+	set_name="$1"
+	file="$2"
+	chunk_size="${3:-500}"
+
+	case "$set_name" in
+		bypass_v4|china_v4) ;;
+		*) return 1 ;;
+	esac
+	[ -f "$file" ] || return 1
+	lpr_is_uint "$chunk_size" || return 1
+	[ "$chunk_size" -ge 1 ] || return 1
+
+	chunk=
+	count=0
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+			''|\#*) continue ;;
+		esac
+		if ! lpr_is_cidr "$line" && ! lpr_is_ipv4 "$line"; then
+			continue
+		fi
+		if [ -z "$chunk" ]; then
+			chunk="$line"
+		else
+			chunk="$chunk, $line"
+		fi
+		count=$((count + 1))
+		if [ "$count" -ge "$chunk_size" ]; then
+			printf 'nft add element inet %s %s { %s }\n' "$LPR_TABLE_NAME" "$set_name" "$chunk"
+			chunk=
+			count=0
+		fi
+	done < "$file"
+	if [ -n "$chunk" ]; then
+		printf 'nft add element inet %s %s { %s }\n' "$LPR_TABLE_NAME" "$set_name" "$chunk"
+	fi
 }
 
 lpr_nft_render_policy_route() {

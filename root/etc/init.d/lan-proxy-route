@@ -11,15 +11,11 @@ EXTRA_HELP="        diagnose        Run service diagnostics
 
 start_service() {
 	"$SERVICE" apply
-	/etc/init.d/dnsmasq reload >/dev/null 2>&1 || true
-	/etc/init.d/firewall reload >/dev/null 2>&1 || true
 }
 
 reload_service() {
 	"$SERVICE" cleanup
 	"$SERVICE" apply
-	/etc/init.d/dnsmasq reload >/dev/null 2>&1 || true
-	/etc/init.d/firewall reload >/dev/null 2>&1 || true
 }
 
 stop_service() {

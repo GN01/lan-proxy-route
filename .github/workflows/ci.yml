@@ -141,10 +141,13 @@ jobs:
 
           require_exec etc/init.d/lan-proxy-route
           require_exec usr/share/lan-proxy-route/lan-proxy-route.sh
+          require_exec usr/share/lan-proxy-route/update-chnroute.sh
           require_exec usr/libexec/rpcd/lan-proxy-route
           require_file usr/share/luci/menu.d/luci-app-lan-proxy-route.json
           require_file usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json
           require_file www/luci-static/resources/view/lan-proxy-route/overview.js
+          require_file etc/lan-proxy-route/china_ip4.txt
+          require_file etc/lan-proxy-route/china_ip4.ver
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v7
