@@ -79,7 +79,8 @@ EOF
 
 LPR_DRY_RUN=1 LPR_CONFIG="$tmpdir/lan_proxy_route" sh "$svc" render > "$tmpdir/render.out"
 assert_contains "$tmpdir/render.out" "ip rule add fwmark 0x321 lookup 321 priority 10321"
-assert_contains "$tmpdir/render.out" "ip route replace default via 192.168.50.2 dev br-test table 321"
+assert_contains "$tmpdir/render.out" "ip route replace 192.168.50.2/32 dev br-test table 321"
+assert_contains "$tmpdir/render.out" "ip route replace default via 192.168.50.2 dev br-test table 321 onlink"
 assert_contains "$tmpdir/render.out" "server=1.1.1.1"
 assert_contains "$tmpdir/render.out" "server=/fake.example/192.168.50.2#1053"
 assert_contains "$tmpdir/render.out" "server=/real.example/192.168.50.2#1053"
@@ -157,10 +158,12 @@ assert_not_contains "$exec_log" "set clients_v4 {"
 
 lpr_nft_render_cleanup 0x321 321 10321 192.168.50.2 br-test > "$tmpdir/nft-cleanup.out"
 assert_contains "$tmpdir/nft-cleanup.out" "ip route del default via 192.168.50.2 dev br-test table 321 2>/dev/null || true"
+assert_contains "$tmpdir/nft-cleanup.out" "ip route del 192.168.50.2/32 dev br-test table 321 2>/dev/null || true"
 assert_not_contains "$tmpdir/nft-cleanup.out" "ip route flush table"
 
 lpr_ipset_render_cleanup 0x321 321 10321 br-test 192.168.50.2 > "$tmpdir/ipset-cleanup.out"
 assert_contains "$tmpdir/ipset-cleanup.out" "ip route del default via 192.168.50.2 dev br-test table 321 2>/dev/null || true"
+assert_contains "$tmpdir/ipset-cleanup.out" "ip route del 192.168.50.2/32 dev br-test table 321 2>/dev/null || true"
 assert_not_contains "$tmpdir/ipset-cleanup.out" "ip route flush table"
 
 LPR_CONFIG="$tmpdir/lan_proxy_route" LPR_DNSMASQ_CONF="$dns_conf" sh "$svc" diagnose > "$tmpdir/diag.json"

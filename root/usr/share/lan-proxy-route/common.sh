@@ -254,6 +254,38 @@ lpr_detect_backend() {
 	esac
 }
 
+lpr_render_policy_route() {
+	mark="$1"
+	table="$2"
+	priority="$3"
+	x86_ip="$4"
+	lan_if="$5"
+
+	lpr_is_mark "$mark" || return 1
+	lpr_is_uint "$table" || return 1
+	lpr_is_uint "$priority" || return 1
+	lpr_is_ipv4 "$x86_ip" || return 1
+	lpr_is_ifname "$lan_if" || return 1
+
+	# LAN-side proxy hosts are on-link; without `onlink` iproute2 rejects the gateway.
+	printf 'ip rule add fwmark %s lookup %s priority %s\n' "$mark" "$table" "$priority"
+	printf 'ip route replace %s/32 dev %s table %s\n' "$x86_ip" "$lan_if" "$table"
+	printf 'ip route replace default via %s dev %s table %s onlink\n' "$x86_ip" "$lan_if" "$table"
+}
+
+lpr_render_policy_route_cleanup() {
+	table="$1"
+	x86_ip="$2"
+	lan_if="$3"
+
+	lpr_is_uint "$table" || return 1
+	lpr_is_ipv4 "$x86_ip" || return 1
+	lpr_is_ifname "$lan_if" || return 1
+
+	printf 'ip route del default via %s dev %s table %s 2>/dev/null || true\n' "$x86_ip" "$lan_if" "$table"
+	printf 'ip route del %s/32 dev %s table %s 2>/dev/null || true\n' "$x86_ip" "$lan_if" "$table"
+}
+
 lpr_cmd() {
 	if [ "${LPR_DRY_RUN:-0}" = "1" ]; then
 		printf '%s\n' "$*"

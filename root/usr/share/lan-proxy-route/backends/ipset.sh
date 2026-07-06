@@ -135,8 +135,7 @@ lpr_ipset_render_policy_route() {
 	lpr_is_ipv4 "$x86_ip" || return 1
 	lpr_is_ifname "$lan_if" || return 1
 
-	printf 'ip rule add fwmark %s lookup %s priority %s\n' "$mark" "$table" "$priority"
-	printf 'ip route replace default via %s dev %s table %s\n' "$x86_ip" "$lan_if" "$table"
+	lpr_render_policy_route "$mark" "$table" "$priority" "$x86_ip" "$lan_if"
 }
 
 lpr_ipset_render_cleanup() {
@@ -171,7 +170,7 @@ ipset destroy lpr_proxy_v4 2>/dev/null || true
 ip rule del fwmark $mark lookup $table priority $priority 2>/dev/null || true
 EOF
 	if [ -n "$x86_ip" ] && [ -n "$lan_if" ]; then
-		printf 'ip route del default via %s dev %s table %s 2>/dev/null || true\n' "$x86_ip" "$lan_if" "$table"
+		lpr_render_policy_route_cleanup "$table" "$x86_ip" "$lan_if"
 	else
 		return 1
 	fi

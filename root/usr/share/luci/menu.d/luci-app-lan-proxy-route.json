@@ -1,6 +1,6 @@
 {
   "admin/services/lan-proxy-route": {
-    "title": "LAN Proxy Route",
+    "title": "LAN 代理路由",
     "order": 60,
     "action": {
       "type": "view",
@@ -12,27 +12,22 @@
     }
   },
   "admin/services/lan-proxy-route/overview": {
-    "title": "Overview",
+    "title": "概况",
     "order": 10,
     "action": { "type": "view", "path": "lan-proxy-route/overview" }
   },
   "admin/services/lan-proxy-route/settings": {
-    "title": "Basic Settings",
+    "title": "基本设置",
     "order": 20,
     "action": { "type": "view", "path": "lan-proxy-route/settings" }
   },
-  "admin/services/lan-proxy-route/dns": {
-    "title": "DNS and Filtering",
-    "order": 30,
-    "action": { "type": "view", "path": "lan-proxy-route/dns" }
-  },
   "admin/services/lan-proxy-route/clients": {
-    "title": "Client Control",
+    "title": "客户端控制",
     "order": 40,
     "action": { "type": "view", "path": "lan-proxy-route/clients" }
   },
   "admin/services/lan-proxy-route/rules": {
-    "title": "Rules and Diagnostics",
+    "title": "规则与诊断",
     "order": 50,
     "action": { "type": "view", "path": "lan-proxy-route/rules" }
   }

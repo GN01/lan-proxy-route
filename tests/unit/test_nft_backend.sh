@@ -42,7 +42,8 @@ fi
 routes="$(lpr_nft_render_policy_route 0x210 210 10210 192.168.1.2 br-lan)"
 printf '%s\n' "$routes" > /tmp/lpr-nft-routes.out
 assert_contains /tmp/lpr-nft-routes.out "ip rule add fwmark 0x210 lookup 210 priority 10210"
-assert_contains /tmp/lpr-nft-routes.out "ip route replace default via 192.168.1.2 dev br-lan table 210"
+assert_contains /tmp/lpr-nft-routes.out "ip route replace 192.168.1.2/32 dev br-lan table 210"
+assert_contains /tmp/lpr-nft-routes.out "ip route replace default via 192.168.1.2 dev br-lan table 210 onlink"
 
 if lpr_nft_render_policy_route 0x210 210 10210 999.1.1.1 br-lan >/tmp/lpr-nft-bad-x86.out 2>&1; then
 	fail "invalid X86 IP accepted"
@@ -59,4 +60,5 @@ printf '%s\n' "$cleanup" > /tmp/lpr-nft-cleanup.out
 assert_contains /tmp/lpr-nft-cleanup.out "nft list table inet lan_proxy_route >/dev/null 2>&1 && nft delete table inet lan_proxy_route || true"
 assert_contains /tmp/lpr-nft-cleanup.out "ip rule del fwmark 0x210 lookup 210 priority 10210 2>/dev/null || true"
 assert_contains /tmp/lpr-nft-cleanup.out "ip route del default via 192.168.1.2 dev br-lan table 210 2>/dev/null || true"
+assert_contains /tmp/lpr-nft-cleanup.out "ip route del 192.168.1.2/32 dev br-lan table 210 2>/dev/null || true"
 assert_not_contains /tmp/lpr-nft-cleanup.out "ip route flush table"

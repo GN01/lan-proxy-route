@@ -204,7 +204,8 @@ lpr_diag_json() {
 	x86_reachable="$(lpr_diag_x86_reachable "$x86_ip")"
 	running=false
 	if [ "$enabled" = "1" ] && [ "$backend_table_present" = true ] && \
-		[ "$policy_rule_present" = true ] && [ -z "$backend_error" ]; then
+		[ "$policy_rule_present" = true ] && [ "$policy_route_present" = true ] && \
+		[ -z "$backend_error" ]; then
 		running=true
 	fi
 	if [ "$enabled" = "1" ]; then
