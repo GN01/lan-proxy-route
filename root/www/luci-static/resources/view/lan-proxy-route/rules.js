@@ -1,8 +1,13 @@
 'use strict';
 'require view';
 'require form';
+'require lan-proxy-route.apply as lprApply';
 
 return view.extend({
+	handleSaveApply: function(ev, mode) {
+		return lprApply.handleSaveApply(this, ev, mode);
+	},
+
 	render: function() {
 		var m, s, o;
 		m = new form.Map('lan_proxy_route', _('LAN 代理路由'));

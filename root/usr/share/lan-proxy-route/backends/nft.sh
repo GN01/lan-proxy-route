@@ -31,9 +31,9 @@ lpr_nft_client_prefix() {
 	esac
 }
 
-# GeoIP split model: destinations in bypass_v4 (reserved/custom) or china_v4
-# (China routes) stay on the normal path; everything else is treated as
-# foreign and gets marked for the proxy routing table.
+# GeoIP split model (homeproxy-style bypass_cn): reserved/custom bypass and
+# china_v4 destinations stay on the main routing path (no fwmark); only
+# foreign destinations are marked for the proxy routing table.
 lpr_nft_render_table() {
 	lan_if="$1"
 	mark="$2"
@@ -55,8 +55,6 @@ nft add set inet $LPR_TABLE_NAME blocked_clients_v4 '{ type ipv4_addr; flags int
 nft add set inet $LPR_TABLE_NAME bypass_v4 '{ type ipv4_addr; flags interval; }'
 nft add set inet $LPR_TABLE_NAME china_v4 '{ type ipv4_addr; flags interval; }'
 nft add chain inet $LPR_TABLE_NAME prerouting '{ type filter hook prerouting priority mangle; policy accept; }'
-nft add rule inet $LPR_TABLE_NAME prerouting iifname "$lan_if" ip daddr @bypass_v4 return
-nft add rule inet $LPR_TABLE_NAME prerouting iifname "$lan_if" ip daddr @china_v4 return
 EOF
 
 	if [ "$access_mode" = "blocklist" ]; then
@@ -66,6 +64,8 @@ EOF
 	fi
 
 	cat <<EOF
+nft add rule inet $LPR_TABLE_NAME prerouting iifname "$lan_if" ip daddr @bypass_v4 return
+nft add rule inet $LPR_TABLE_NAME prerouting iifname "$lan_if" ip daddr @china_v4 return
 nft add rule inet $LPR_TABLE_NAME prerouting $prefix meta mark set $mark
 EOF
 }

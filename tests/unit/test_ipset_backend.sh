@@ -32,6 +32,15 @@ assert_contains /tmp/lpr-ipset-allow.out "iptables -t mangle -A LAN_PROXY_ROUTE 
 out="$(lpr_ipset_render_mangle br-lan 0x210 blocklist)"
 printf '%s\n' "$out" > /tmp/lpr-ipset-block.out
 assert_contains /tmp/lpr-ipset-block.out "iptables -t mangle -A LAN_PROXY_ROUTE -m set --match-set lpr_blocked_clients src -j RETURN"
+assert_contains /tmp/lpr-ipset-block.out "iptables -t mangle -A LAN_PROXY_ROUTE -m set --match-set lpr_bypass_v4 dst -j RETURN"
+assert_contains /tmp/lpr-ipset-block.out "iptables -t mangle -A LAN_PROXY_ROUTE -m set --match-set lpr_china_v4 dst -j RETURN"
+blocked_line="$(grep -n 'lpr_blocked_clients src -j RETURN' /tmp/lpr-ipset-block.out | head -n1 | cut -d: -f1)"
+bypass_line="$(grep -n 'lpr_bypass_v4 dst -j RETURN' /tmp/lpr-ipset-block.out | head -n1 | cut -d: -f1)"
+china_line="$(grep -n 'lpr_china_v4 dst -j RETURN' /tmp/lpr-ipset-block.out | head -n1 | cut -d: -f1)"
+mark_line="$(grep -n 'MARK --set-mark 0x210' /tmp/lpr-ipset-block.out | head -n1 | cut -d: -f1)"
+[ "$blocked_line" -lt "$bypass_line" ] || fail "blocklist rule must precede bypass"
+[ "$bypass_line" -lt "$china_line" ] || fail "bypass rule must precede china direct"
+[ "$china_line" -lt "$mark_line" ] || fail "china direct rule must precede proxy mark"
 
 if lpr_ipset_render_mangle "br lan" 0x210 all >/tmp/lpr-ipset-bad-iface.out 2>&1; then
 	fail "invalid LAN interface accepted"

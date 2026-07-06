@@ -28,7 +28,16 @@ assert_contains /tmp/lpr-nft-allow.out 'iifname "br-lan" ip daddr @china_v4 retu
 out="$(lpr_nft_render_table br-lan 0x210 blocklist)"
 printf '%s\n' "$out" > /tmp/lpr-nft-block.out
 assert_contains /tmp/lpr-nft-block.out 'iifname "br-lan" ip saddr @blocked_clients_v4 return'
+assert_contains /tmp/lpr-nft-block.out 'iifname "br-lan" ip daddr @bypass_v4 return'
+assert_contains /tmp/lpr-nft-block.out 'iifname "br-lan" ip daddr @china_v4 return'
 assert_contains /tmp/lpr-nft-block.out 'iifname "br-lan" meta mark set 0x210'
+blocked_line="$(grep -n 'blocked_clients_v4 return' /tmp/lpr-nft-block.out | head -n1 | cut -d: -f1)"
+bypass_line="$(grep -n 'bypass_v4 return' /tmp/lpr-nft-block.out | head -n1 | cut -d: -f1)"
+china_line="$(grep -n 'china_v4 return' /tmp/lpr-nft-block.out | head -n1 | cut -d: -f1)"
+mark_line="$(grep -n 'meta mark set 0x210' /tmp/lpr-nft-block.out | head -n1 | cut -d: -f1)"
+[ "$blocked_line" -lt "$bypass_line" ] || fail "blocklist rule must precede bypass"
+[ "$bypass_line" -lt "$china_line" ] || fail "bypass rule must precede china direct"
+[ "$china_line" -lt "$mark_line" ] || fail "china direct rule must precede proxy mark"
 
 if lpr_nft_render_table br-lan 0x210 denylist >/tmp/lpr-nft-bad-access.out 2>&1; then
 	fail "invalid access mode accepted"

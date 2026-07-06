@@ -22,6 +22,10 @@ stop_service() {
 	"$SERVICE" cleanup
 }
 
+service_triggers() {
+	procd_add_reload_trigger "lan_proxy_route"
+}
+
 diagnose() {
 	"$SERVICE" diagnose
 }

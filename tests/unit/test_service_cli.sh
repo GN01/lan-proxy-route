@@ -17,6 +17,7 @@ trap 'rm -rf "$tmpdir"' EXIT INT TERM
 
 assert_contains "$init" "EXTRA_COMMANDS=\"diagnose trace\""
 assert_not_contains "$init" "dnsmasq"
+assert_contains "$init" "procd_add_reload_trigger \"lan_proxy_route\""
 
 start_service_block="$(awk '/^start_service\(\)/,/^}/ { print }' "$init")"
 diagnose_block="$(awk '/^diagnose\(\)/,/^}/ { print }' "$init")"

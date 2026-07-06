@@ -94,8 +94,8 @@ lpr_ipset_render_file_elements() {
 	fi
 }
 
-# GeoIP split model: bypass and China destinations RETURN; everything else
-# from eligible clients is marked for the proxy routing table.
+# GeoIP split model (homeproxy-style bypass_cn): bypass and china_v4 RETURN
+# on the main path; only foreign destinations are marked for the proxy table.
 lpr_ipset_render_mangle() {
 	lan_if="$1"
 	mark="$2"
@@ -114,8 +114,6 @@ lpr_ipset_render_mangle() {
 	cat <<EOF
 iptables -t mangle -N LAN_PROXY_ROUTE
 iptables -t mangle -A PREROUTING -i $lan_if -j LAN_PROXY_ROUTE
-iptables -t mangle -A LAN_PROXY_ROUTE -m set --match-set lpr_bypass_v4 dst -j RETURN
-iptables -t mangle -A LAN_PROXY_ROUTE -m set --match-set lpr_china_v4 dst -j RETURN
 EOF
 
 	if [ "$access_mode" = "blocklist" ]; then
@@ -125,6 +123,8 @@ EOF
 	fi
 
 	cat <<EOF
+iptables -t mangle -A LAN_PROXY_ROUTE -m set --match-set lpr_bypass_v4 dst -j RETURN
+iptables -t mangle -A LAN_PROXY_ROUTE -m set --match-set lpr_china_v4 dst -j RETURN
 iptables -t mangle -A LAN_PROXY_ROUTE ${client_match}-j MARK --set-mark $mark
 EOF
 }

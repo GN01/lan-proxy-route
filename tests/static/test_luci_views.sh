@@ -17,6 +17,8 @@ assert_not_contains "$menu" "view/lan-proxy-route/clients"
 assert_not_contains "$menu" "view/lan-proxy-route/rules"
 
 [ ! -f root/www/luci-static/resources/view/lan-proxy-route/dns.js ] || fail "dns view still exists"
+assert_file_exists root/www/luci-static/resources/lan-proxy-route/apply.js
+assert_contains root/www/luci-static/resources/lan-proxy-route/apply.js "callReload"
 
 for view in overview settings clients rules; do
 	file="root/www/luci-static/resources/view/lan-proxy-route/$view.js"
@@ -33,6 +35,10 @@ assert_contains root/www/luci-static/resources/view/lan-proxy-route/overview.js 
 assert_not_contains root/www/luci-static/resources/view/lan-proxy-route/overview.js "dns_hijack_present"
 assert_not_contains root/www/luci-static/resources/view/lan-proxy-route/overview.js "dnsmasq"
 assert_contains root/www/luci-static/resources/view/lan-proxy-route/settings.js "'enabled'"
+assert_contains root/www/luci-static/resources/view/lan-proxy-route/settings.js "handleSaveApply"
+assert_contains root/www/luci-static/resources/view/lan-proxy-route/settings.js "lprApply.handleSaveApply"
+assert_contains root/www/luci-static/resources/view/lan-proxy-route/clients.js "handleSaveApply"
+assert_contains root/www/luci-static/resources/view/lan-proxy-route/rules.js "handleSaveApply"
 assert_contains root/www/luci-static/resources/view/lan-proxy-route/settings.js "_('启用')"
 assert_contains root/www/luci-static/resources/view/lan-proxy-route/settings.js "chnroute_url"
 assert_not_contains root/www/luci-static/resources/view/lan-proxy-route/settings.js "dns_mode"
