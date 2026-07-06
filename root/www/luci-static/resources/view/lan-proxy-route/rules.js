@@ -5,7 +5,7 @@
 
 return view.extend({
 	handleSaveApply: function(ev, mode) {
-		return lprApply.handleSaveApply(this, ev, mode);
+		return (new lprApply()).saveAndApply(this, ev, mode);
 	},
 
 	render: function() {

@@ -1,4 +1,5 @@
 'use strict';
+'require baseclass';
 'require rpc';
 
 var callReload = rpc.declare({
@@ -7,9 +8,8 @@ var callReload = rpc.declare({
 	expect: { ok: false }
 });
 
-return {
-	callReload: callReload,
-	handleSaveApply: function(view, ev, mode) {
+return baseclass.extend({
+	saveAndApply: function(view, ev, mode) {
 		return view.handleSave(ev).then(function() {
 			if (mode !== 'apply')
 				return null;
@@ -19,4 +19,4 @@ return {
 				throw new Error(res.error || 'reload failed');
 		});
 	}
-};
+});
