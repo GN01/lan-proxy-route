@@ -58,6 +58,10 @@ lpr_rpcd_update_chnroute() {
 	fi
 }
 
+lpr_rpcd_check_chnroute() {
+	"$UPDATER" check
+}
+
 lpr_rpcd_json_dst() {
 	printf '%s\n' "${1:-}" | sed -n 's/.*"dst"[	 ]*:[	 ]*"\([^"]*\)".*/\1/p'
 }
@@ -82,6 +86,7 @@ case "${1:-list}" in
   "logs": {},
   "reload": {},
   "update_chnroute": {},
+  "check_chnroute": {},
   "test_route": {
     "src": "String",
     "dst": "String"
@@ -96,6 +101,7 @@ EOF
 			logs) lpr_rpcd_json_log ;;
 			reload) lpr_rpcd_reload ;;
 			update_chnroute) lpr_rpcd_update_chnroute ;;
+			check_chnroute) lpr_rpcd_check_chnroute ;;
 			test_route) lpr_rpcd_test_route "${3:-}" ;;
 			*) printf '{"error":"unknown method"}\n'; exit 1 ;;
 		esac

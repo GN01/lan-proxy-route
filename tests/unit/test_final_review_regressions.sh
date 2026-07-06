@@ -57,6 +57,24 @@ assert_not_contains "$tmpdir/render.out" "dnsmasq"
 assert_not_contains "$tmpdir/render.out" "server=/"
 assert_not_contains "$tmpdir/render.out" "proxy_v4"
 
+cat > "$tmpdir/bypass-host" <<EOF
+config global
+	option enabled '1'
+	option backend 'nftset'
+
+config proxy_node 'x86'
+	option ip '192.168.1.2'
+
+config bypass 'bypass'
+	list cidr '192.168.0.0/16'
+	list host '192.168.1.100/32'
+	list host '8.8.8.8'
+EOF
+
+LPR_DRY_RUN=1 LPR_CONFIG="$tmpdir/bypass-host" sh "$svc" render > "$tmpdir/bypass-host.out"
+assert_contains "$tmpdir/bypass-host.out" "nft add element inet lan_proxy_route bypass_v4 { 192.168.1.100/32 }"
+assert_contains "$tmpdir/bypass-host.out" "nft add element inet lan_proxy_route bypass_v4 { 8.8.8.8 }"
+
 cat > "$tmpdir/default-overlap" <<EOF
 config global 'global'
 	option enabled '1'
@@ -73,8 +91,8 @@ EOF
 LPR_DRY_RUN=1 LPR_CONFIG="$tmpdir/default-overlap" LPR_CHINA_FILE="$tmpdir/china_ip4.txt" \
 	LPR_CHINA_VER_FILE="$tmpdir/china_ip4.ver" sh "$svc" render > "$tmpdir/default-overlap.out"
 assert_contains "$tmpdir/default-overlap.out" "nft add element inet lan_proxy_route bypass_v4 { 192.168.0.0/16 }"
-assert_not_contains "$tmpdir/default-overlap.out" "nft add element inet lan_proxy_route bypass_v4 { 192.168.1.0/24 }"
-assert_not_contains "$tmpdir/default-overlap.out" "nft add element inet lan_proxy_route bypass_v4 { 192.168.1.2 }"
+assert_contains "$tmpdir/default-overlap.out" "nft add element inet lan_proxy_route bypass_v4 { 192.168.1.0/24 }"
+assert_contains "$tmpdir/default-overlap.out" "nft add element inet lan_proxy_route bypass_v4 { 192.168.1.2 }"
 
 cat > "$tmpdir/disabled" <<EOF
 config global

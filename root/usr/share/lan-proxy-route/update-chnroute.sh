@@ -76,6 +76,37 @@ lpr_chnroute_validate_file() {
 	printf '%s\n' "$entries"
 }
 
+lpr_chnroute_local_version() {
+	if [ -f "$LPR_CHINA_VER_FILE" ]; then
+		head -n 1 "$LPR_CHINA_VER_FILE" | tr -cd '0-9'
+	else
+		printf 'unknown'
+	fi
+}
+
+lpr_chnroute_check() {
+	base_url="$(lpr_chnroute_url_base)"
+	tmpdir="$(mktemp -d)"
+	trap 'rm -rf "$tmpdir"' EXIT INT TERM
+
+	local_ver="$(lpr_chnroute_local_version)"
+	remote_ver=unknown
+	update_available=false
+
+	if lpr_fetch "$base_url/china_ip4.ver" "$tmpdir/china_ip4.ver"; then
+		remote_ver="$(head -n 1 "$tmpdir/china_ip4.ver" | tr -cd '0-9')"
+		[ -n "$remote_ver" ] || remote_ver=unknown
+	fi
+
+	if [ "$remote_ver" != unknown ] && [ "$local_ver" != unknown ] && \
+		[ "$remote_ver" != "$local_ver" ]; then
+		update_available=true
+	fi
+
+	printf '{"ok":true,"local_version":"%s","remote_version":"%s","update_available":%s}\n' \
+		"$local_ver" "$remote_ver" "$update_available"
+}
+
 lpr_chnroute_update() {
 	force="${1:-0}"
 	base_url="$(lpr_chnroute_url_base)"
@@ -124,13 +155,12 @@ case "${1:-update}" in
 		lpr_chnroute_update 1
 		;;
 	version)
-		if [ -f "$LPR_CHINA_VER_FILE" ]; then
-			head -n 1 "$LPR_CHINA_VER_FILE"
-		else
-			printf 'unknown\n'
-		fi
+		lpr_chnroute_local_version
+		;;
+	check)
+		lpr_chnroute_check
 		;;
 	*)
-		lpr_die "usage: $0 update|force-update|version"
+		lpr_die "usage: $0 update|force-update|version|check"
 		;;
 esac

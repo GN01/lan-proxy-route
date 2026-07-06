@@ -27,10 +27,6 @@ return view.extend({
 		s.option(form.Value, 'table', _('路由表')).datatype = 'uinteger';
 		s.option(form.Value, 'priority', _('规则优先级')).datatype = 'uinteger';
 
-		o = s.option(form.Value, 'chnroute_url', _('国内 IP 库更新源'));
-		o.placeholder = 'https://raw.githubusercontent.com/immortalwrt/homeproxy/master/root/etc/homeproxy/resources';
-		o.optional = true;
-
 		s = m.section(form.NamedSection, 'x86', 'proxy_node', _('X86 代理主机'));
 		s.option(form.Value, 'ip', _('代理主机 IP')).datatype = 'ip4addr';
 		s.option(form.Value, 'mode', _('代理模式')).default = 'dae';

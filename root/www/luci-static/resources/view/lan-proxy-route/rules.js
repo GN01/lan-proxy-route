@@ -16,7 +16,7 @@ return view.extend({
 		o = s.option(form.DynamicList, 'cidr', _('绕过网段'));
 		o.datatype = 'cidr4';
 		o = s.option(form.DynamicList, 'host', _('绕过主机 IP'));
-		o.datatype = 'ip4addr';
+		o.datatype = 'or(ip4addr,cidr4)';
 
 		return m.render();
 	}

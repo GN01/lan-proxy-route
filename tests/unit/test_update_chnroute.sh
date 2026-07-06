@@ -87,3 +87,11 @@ assert_eq 1200 "$(grep -c '/' "$china_file")"
 # version command reports the local version.
 version_out="$(LPR_CHINA_VER_FILE="$ver_file" sh "$updater" version)"
 assert_eq 20990101000000 "$version_out"
+
+LPR_FETCH_CMD="$tmpdir/fake-fetch" LPR_CHINA_VER_FILE="$ver_file" \
+	LPR_CHNROUTE_URL_BASE="https://example.test/resources" \
+	sh "$updater" check > "$tmpdir/check.out"
+assert_contains "$tmpdir/check.out" '"ok":true'
+assert_contains "$tmpdir/check.out" '"local_version":"20990101000000"'
+assert_contains "$tmpdir/check.out" '"remote_version":"20990202000000"'
+assert_contains "$tmpdir/check.out" '"update_available":true'

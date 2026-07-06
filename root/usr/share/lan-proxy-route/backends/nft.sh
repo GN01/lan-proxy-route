@@ -134,6 +134,35 @@ $entry"
 	done
 }
 
+# User-defined bypass entries are always loaded as-is (only skip exact
+# duplicates). Subnet dedup is intentionally disabled so explicit host IPs
+# remain visible and are not dropped when covered by a broader bypass CIDR.
+lpr_nft_render_bypass_elements() {
+	set_name="$1"
+	shift
+
+	[ "$set_name" = "bypass_v4" ] || return 1
+
+	rendered_values=
+	for value in "$@"; do
+		[ -n "$value" ] || continue
+		entry="$value"
+		if ! lpr_is_ipv4 "$entry" && ! lpr_is_cidr "$entry"; then
+			return 1
+		fi
+		case "
+$rendered_values
+" in
+			*"
+$entry
+"*) continue ;;
+		esac
+		rendered_values="${rendered_values}
+$entry"
+		printf 'nft add element inet %s %s { %s }\n' "$LPR_TABLE_NAME" "$set_name" "$entry"
+	done
+}
+
 # Bulk-load a large CIDR list file into a set. Entries are batched into
 # chunks so thousands of CIDRs do not need one nft invocation each.
 lpr_nft_render_file_elements() {

@@ -71,6 +71,7 @@ assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"status
 assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"logs"'
 assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"reload"'
 assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"update_chnroute"'
+assert_contains root/usr/share/rpcd/acl.d/luci-app-lan-proxy-route.json '"check_chnroute"'
 
 cat > "$tmpdir/mock-service-success" <<'EOF'
 #!/bin/sh
@@ -94,6 +95,7 @@ assert_contains "$tmpdir/rpc-list.json" '"status"'
 assert_contains "$tmpdir/rpc-list.json" '"logs"'
 assert_contains "$tmpdir/rpc-list.json" '"reload"'
 assert_contains "$tmpdir/rpc-list.json" '"update_chnroute"'
+assert_contains "$tmpdir/rpc-list.json" '"check_chnroute"'
 assert_contains "$tmpdir/rpc-list.json" '"test_route"'
 
 LPR_RPCD_SERVICE="$tmpdir/mock-service-success" sh "$rpc" call status > "$tmpdir/rpc-status.json"

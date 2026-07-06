@@ -39,6 +39,11 @@ mark_line="$(grep -n 'meta mark set 0x210' /tmp/lpr-nft-block.out | head -n1 | c
 [ "$bypass_line" -lt "$china_line" ] || fail "bypass rule must precede china direct"
 [ "$china_line" -lt "$mark_line" ] || fail "china direct rule must precede proxy mark"
 
+bypass="$(lpr_nft_render_bypass_elements bypass_v4 192.168.0.0/16 192.168.1.100/32 8.8.8.8)"
+printf '%s\n' "$bypass" > /tmp/lpr-nft-bypass.out
+assert_contains /tmp/lpr-nft-bypass.out "nft add element inet lan_proxy_route bypass_v4 { 192.168.1.100/32 }"
+assert_contains /tmp/lpr-nft-bypass.out "nft add element inet lan_proxy_route bypass_v4 { 8.8.8.8 }"
+
 if lpr_nft_render_table br-lan 0x210 denylist >/tmp/lpr-nft-bad-access.out 2>&1; then
 	fail "invalid access mode accepted"
 fi

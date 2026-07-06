@@ -3,6 +3,7 @@
 'require rpc';
 'require uci';
 'require dom';
+'require ui';
 
 var callStatus = rpc.declare({
 	object: 'lan-proxy-route',
@@ -16,11 +17,20 @@ var callLogs = rpc.declare({
 	expect: { log: '' }
 });
 
+var callCheckChnroute = rpc.declare({
+	object: 'lan-proxy-route',
+	method: 'check_chnroute',
+	expect: {}
+});
+
 var callUpdateChnroute = rpc.declare({
 	object: 'lan-proxy-route',
 	method: 'update_chnroute',
 	expect: {}
 });
+
+var DEFAULT_CHNROUTE_URL =
+	'https://raw.githubusercontent.com/immortalwrt/homeproxy/master/root/etc/homeproxy/resources';
 
 var REACH_LABELS = {
 	reachable: _('可达'),
@@ -73,9 +83,7 @@ function renderStatusTable(st) {
 		boolRow(_('后端规则表'), st.backend_table_present),
 		boolRow(_('策略路由规则'), st.policy_rule_present),
 		boolRow(_('策略路由'), st.policy_route_present),
-		boolRow(_('国内 IP 集合'), st.china_set_present),
-		textRow(_('国内 IP 库版本'), st.china_list_version),
-		textRow(_('国内 IP 库条目数'), st.china_list_entries)
+		boolRow(_('国内 IP 集合'), st.china_set_present)
 	];
 
 	if (st.backend_error)
@@ -84,34 +92,112 @@ function renderStatusTable(st) {
 	return E('table', { 'class': 'table' }, rows);
 }
 
-function renderChnrouteUpdate() {
-	var resultBox = E('pre', {
-		'style': 'white-space:pre-wrap;margin-top:0.5em;display:none;'
+function renderResourceManagement(st, initialUrl, view) {
+	var versionLabel = E('span', {
+		'class': 'label success',
+		'style': 'margin-left:0.5em;'
+	}, st.china_list_version || _('未知'));
+
+	var entriesLabel = E('span', {
+		'class': 'label',
+		'style': 'margin-left:0.5em;'
+	}, st.china_list_entries != null ? String(st.china_list_entries) : _('未知'));
+
+	var statusBox = E('div', {
+		'class': 'cbi-value-description',
+		'style': 'margin-top:0.5em;'
 	}, '');
 
-	var btn = E('button', {
+	var urlInput = E('input', {
+		'class': 'cbi-input-text',
+		'style': 'width:100%;max-width:42em;',
+		'placeholder': DEFAULT_CHNROUTE_URL,
+		'value': initialUrl || ''
+	});
+
+	function refreshStatus() {
+		return callStatus().then(function(next) {
+			if (next && !next.error) {
+				versionLabel.textContent = next.china_list_version || _('未知');
+				entriesLabel.textContent = next.china_list_entries != null
+					? String(next.china_list_entries) : _('未知');
+			}
+		});
+	}
+
+	function setStatus(text, isError) {
+		statusBox.textContent = text;
+		statusBox.style.color = isError ? '#c44' : '';
+	}
+
+	var checkBtn = E('button', {
 		'class': 'btn cbi-button cbi-button-action',
 		'click': function(ev) {
 			var button = ev.target;
 			button.disabled = true;
-			button.textContent = _('更新中…');
-			resultBox.style.display = 'none';
-			callUpdateChnroute().then(function(res) {
-				resultBox.textContent = res.ok
-					? (res.message || _('更新完成'))
-					: (_('更新失败') + '：' + (res.error || _('未知错误')));
-				resultBox.style.display = 'block';
+			setStatus(_('检查中…'), false);
+			callCheckChnroute().then(function(res) {
+				if (!res || res.ok === false)
+					throw new Error((res && res.error) || _('检查失败'));
+
+				if (res.update_available) {
+					setStatus(_('发现新版本') + ' ' + res.remote_version + '，' + _('正在更新…'), false);
+					return callUpdateChnroute().then(function(updateRes) {
+						if (!updateRes || updateRes.ok === false)
+							throw new Error((updateRes && updateRes.error) || _('更新失败'));
+						setStatus(updateRes.message || _('更新完成'), false);
+						return refreshStatus();
+					});
+				}
+
+				setStatus(_('已是最新版本') + ' (' + res.local_version + ')', false);
 			}).catch(function(err) {
-				resultBox.textContent = _('更新失败') + '：' + err;
-				resultBox.style.display = 'block';
+				setStatus(String(err), true);
 			}).finally(function() {
 				button.disabled = false;
-				button.textContent = _('更新国内 IP 库');
 			});
 		}
-	}, _('更新国内 IP 库'));
+	}, _('检查更新'));
 
-	return E('div', {}, [ btn, resultBox ]);
+	var saveBtn = E('button', {
+		'class': 'btn cbi-button cbi-button-save',
+		'style': 'margin-left:0.5em;',
+		'click': function(ev) {
+			var button = ev.target;
+			var url = urlInput.value.trim();
+			button.disabled = true;
+			uci.set('lan_proxy_route', 'global', 'chnroute_url', url);
+			uci.save().then(function() {
+				ui.addNotification(null, E('p', {}, _('自定义更新源已保存')));
+			}).catch(function(err) {
+				ui.addNotification(null, E('p', { 'class': 'error' }, String(err)));
+			}).finally(function() {
+				button.disabled = false;
+			});
+		}
+	}, _('保存'));
+
+	return E('div', {}, [
+		E('h3', {}, _('资源管理')),
+		E('div', { 'class': 'cbi-value' }, [
+			E('label', { 'class': 'cbi-value-title' }, _('国内 IPv4 库版本')),
+			E('div', { 'class': 'cbi-value-field' }, [ checkBtn, versionLabel ])
+		]),
+		E('div', { 'class': 'cbi-value' }, [
+			E('label', { 'class': 'cbi-value-title' }, _('国内 IP 库条目数')),
+			E('div', { 'class': 'cbi-value-field' }, entriesLabel)
+		]),
+		E('div', { 'class': 'cbi-value' }, [
+			E('label', { 'class': 'cbi-value-title' }, _('自定义更新源')),
+			E('div', { 'class': 'cbi-value-field' }, [
+				urlInput,
+				saveBtn,
+				E('div', { 'class': 'cbi-value-description' },
+					_('留空则使用 HomeProxy 默认源；目录 URL 需包含 china_ip4.txt 与 china_ip4.ver'))
+			])
+		]),
+		statusBox
+	]);
 }
 
 function renderCommands() {
@@ -144,6 +230,7 @@ return view.extend({
 
 	render: function(data) {
 		var cfgEnabled = uci.get('lan_proxy_route', 'global', 'enabled') === '1';
+		var chnrouteUrl = uci.get('lan_proxy_route', 'global', 'chnroute_url') || '';
 		var st = data[1] || {};
 		var logs = (data[2] && data[2].log) ? data[2].log : '';
 
@@ -158,8 +245,7 @@ return view.extend({
 		if (!st.error && st.backend)
 			body.push(renderStatusTable(st));
 
-		body.push(E('h3', {}, _('国内 IP 库')));
-		body.push(renderChnrouteUpdate());
+		body.push(renderResourceManagement(st, chnrouteUrl, this));
 
 		body.push(E('h3', {}, _('最近日志')));
 		body.push(E('pre', {

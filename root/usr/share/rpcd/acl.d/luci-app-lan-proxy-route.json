@@ -4,7 +4,7 @@
     "read": {
       "uci": [ "lan_proxy_route" ],
       "ubus": {
-        "lan-proxy-route": [ "status", "logs", "test_route" ]
+        "lan-proxy-route": [ "status", "logs", "test_route", "check_chnroute" ]
       }
     },
     "write": {

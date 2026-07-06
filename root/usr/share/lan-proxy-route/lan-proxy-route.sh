@@ -55,7 +55,8 @@ lpr_config_set_value() {
 		access:list:allow_cidr) LPR_CFG_ALLOW_CIDRS="$(lpr_join_lines "$LPR_CFG_ALLOW_CIDRS" "$value")" ;;
 		access:list:block_ip) LPR_CFG_BLOCK_IPS="$(lpr_join_lines "$LPR_CFG_BLOCK_IPS" "$value")" ;;
 		access:list:block_cidr) LPR_CFG_BLOCK_CIDRS="$(lpr_join_lines "$LPR_CFG_BLOCK_CIDRS" "$value")" ;;
-		bypass:list:cidr|bypass:list:host) LPR_CFG_BYPASS_CIDRS="$(lpr_join_lines "$LPR_CFG_BYPASS_CIDRS" "$value")" ;;
+		bypass:list:cidr) LPR_CFG_BYPASS_CIDRS="$(lpr_join_lines "$LPR_CFG_BYPASS_CIDRS" "$value")" ;;
+		bypass:list:host) LPR_CFG_BYPASS_CIDRS="$(lpr_join_lines "$LPR_CFG_BYPASS_CIDRS" "$value")" ;;
 	esac
 }
 
@@ -187,7 +188,7 @@ lpr_service_render_backend() {
 			lpr_nft_render_table "$LPR_LAN_IF" "$LPR_MARK" "$LPR_ACCESS_MODE"
 			lpr_nft_render_elements clients_v4 $LPR_ALLOW_IPS $LPR_ALLOW_CIDRS
 			lpr_nft_render_elements blocked_clients_v4 $LPR_BLOCK_IPS $LPR_BLOCK_CIDRS
-			lpr_nft_render_elements bypass_v4 $(lpr_service_bypass_values)
+			lpr_nft_render_bypass_elements bypass_v4 $(lpr_service_bypass_values)
 			lpr_nft_render_file_elements china_v4 "$LPR_CHINA_FILE" "$LPR_CHUNK_SIZE"
 			lpr_nft_render_policy_route "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "$LPR_X86_IP" "$LPR_LAN_IF"
 			;;
@@ -195,7 +196,7 @@ lpr_service_render_backend() {
 			lpr_ipset_render_setup
 			lpr_ipset_render_elements lpr_clients $LPR_ALLOW_IPS $LPR_ALLOW_CIDRS
 			lpr_ipset_render_elements lpr_blocked_clients $LPR_BLOCK_IPS $LPR_BLOCK_CIDRS
-			lpr_ipset_render_elements lpr_bypass_v4 $(lpr_service_bypass_values)
+			lpr_ipset_render_bypass_elements lpr_bypass_v4 $(lpr_service_bypass_values)
 			lpr_ipset_render_file_elements lpr_china_v4 "$LPR_CHINA_FILE" "$LPR_CHUNK_SIZE"
 			lpr_ipset_render_mangle "$LPR_LAN_IF" "$LPR_MARK" "$LPR_ACCESS_MODE"
 			lpr_ipset_render_policy_route "$LPR_MARK" "$LPR_TABLE" "$LPR_PRIORITY" "$LPR_X86_IP" "$LPR_LAN_IF"

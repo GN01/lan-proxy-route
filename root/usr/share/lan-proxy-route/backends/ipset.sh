@@ -53,6 +53,33 @@ lpr_ipset_render_elements() {
 	done
 }
 
+# User-defined bypass entries: exact-duplicate dedup only (see nft backend).
+lpr_ipset_render_bypass_elements() {
+	set_name="$1"
+	shift
+
+	[ "$set_name" = "lpr_bypass_v4" ] || return 1
+
+	rendered_values=
+	for value in "$@"; do
+		[ -n "$value" ] || continue
+		entry="$value"
+		if ! lpr_is_ipv4 "$entry" && ! lpr_is_cidr "$entry"; then
+			return 1
+		fi
+		case "
+$rendered_values
+" in
+			*"
+$entry
+"*) continue ;;
+		esac
+		rendered_values="${rendered_values}
+$entry"
+		printf 'ipset add %s %s -exist\n' "$set_name" "$entry"
+	done
+}
+
 # Bulk-load a large CIDR list file into a set via `ipset restore`, batched
 # into chunks piped through a single ipset invocation per chunk.
 lpr_ipset_render_file_elements() {
